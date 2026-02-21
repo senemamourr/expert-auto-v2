@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDatabase } from './config/database';
+import { initializeDatabase } from './config/initDb';
 import authRoutes from './routes/auth';
 import bureauxRoutes from './routes/bureaux';
 import rapportsRoutes from './routes/rapports';
@@ -19,7 +20,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/bureaux', bureauxRoutes);
 app.use('/api/rapports', rapportsRoutes);
 
-connectDatabase().then(() => {
+connectDatabase().then(async () => {
+  // Initialiser la DB (créer admin si nécessaire)
+  await initializeDatabase();
+  
   app.listen(PORT, () => {
     console.log('Server running on port ' + PORT);
   });
