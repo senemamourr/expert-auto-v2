@@ -20,5 +20,7 @@ app.use('/api/bureaux', bureauxRoutes);
 app.use('/api/rapports', rapportsRoutes);
 
 connectDatabase().then(() => {
-  app.listen(PORT, () => console.log(\`🚀 Server running on port \${PORT}\`));
+  app.listen(PORT, () => {
+    console.log('Server running on port ' + PORT);
+  });
 });
