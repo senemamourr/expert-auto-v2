@@ -22,8 +22,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       lg: 'px-6 py-3 text-lg'
     };
     
+    const combinedClassName = [baseStyles, variants[variant], sizes[size], className].join(' ');
+    
     return (
-      <button ref={ref} className={'$baseStyles'} ${variants[variant]} ${sizes[size]} ${className}'} {...props}>
+      <button ref={ref} className={combinedClassName} {...props}>
         {children}
       </button>
     );
