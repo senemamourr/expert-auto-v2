@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { MainLayout } from '@/layouts/MainLayout';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { bureauxService } from '@/services/api';
 import type { Bureau } from '@/types';
@@ -12,6 +11,7 @@ export default function BureauxPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingBureau, setEditingBureau] = useState<Bureau | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     code: '',
     nomAgence: '',
@@ -31,13 +31,36 @@ export default function BureauxPage() {
       setBureaux(data);
     } catch (error) {
       console.error('Erreur chargement bureaux:', error);
+      alert('Erreur lors du chargement des bureaux');
     } finally {
       setLoading(false);
     }
   };
 
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.code.trim()) newErrors.code = 'Le code est requis';
+    if (!formData.nomAgence.trim()) newErrors.nomAgence = 'Le nom de l\'agence est requis';
+    if (!formData.responsableSinistres.trim()) newErrors.responsableSinistres = 'Le responsable est requis';
+    if (!formData.telephone.trim()) newErrors.telephone = 'Le téléphone est requis';
+    if (!formData.email.trim()) newErrors.email = 'L\'email est requis';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Email invalide';
+    }
+    if (!formData.adresse.trim()) newErrors.adresse = 'L\'adresse est requise';
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     try {
       if (editingBureau) {
         await bureauxService.update(editingBureau.id, formData);
@@ -46,9 +69,10 @@ export default function BureauxPage() {
       }
       await loadBureaux();
       closeModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur sauvegarde:', error);
-      alert('Erreur lors de la sauvegarde');
+      const message = error.response?.data?.error || 'Erreur lors de la sauvegarde';
+      alert(message);
     }
   };
 
@@ -64,6 +88,7 @@ export default function BureauxPage() {
   };
 
   const openModal = (bureau?: Bureau) => {
+    setErrors({});
     if (bureau) {
       setEditingBureau(bureau);
       setFormData({
@@ -91,6 +116,42 @@ export default function BureauxPage() {
   const closeModal = () => {
     setShowModal(false);
     setEditingBureau(null);
+    setErrors({});
+  };
+
+  const InputField = ({ label, name, type = 'text', required = false, placeholder = '', rows = undefined }: any) => {
+    const value = formData[name as keyof typeof formData];
+    const error = errors[name];
+    const isTextarea = rows !== undefined;
+    
+    return (
+      <div className="w-full">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {label}
+          {required && <span className="text-red-500 ml-1">*</span>}
+        </label>
+        {isTextarea ? (
+          <textarea
+            className={'w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ' + (error ? 'border-red-500' : 'border-gray-300')}
+            rows={rows}
+            value={value}
+            onChange={(e) => setFormData({ ...formData, [name]: e.target.value })}
+            placeholder={placeholder}
+            required={required}
+          />
+        ) : (
+          <input
+            type={type}
+            className={'w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ' + (error ? 'border-red-500' : 'border-gray-300')}
+            value={value}
+            onChange={(e) => setFormData({ ...formData, [name]: e.target.value })}
+            placeholder={placeholder}
+            required={required}
+          />
+        )}
+        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+      </div>
+    );
   };
 
   if (loading) {
@@ -129,33 +190,41 @@ export default function BureauxPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {bureaux.map((bureau) => (
-                <tr key={bureau.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{bureau.code}</td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{bureau.nomAgence}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{bureau.responsableSinistres}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{bureau.telephone}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{bureau.email}</td>
-                  <td className="px-6 py-4 text-sm space-x-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => openModal(bureau)}
-                      className="inline-flex"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => handleDelete(bureau.id)}
-                      className="inline-flex"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+              {bureaux.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    Aucun bureau pour le moment. Cliquez sur "Nouveau bureau" pour commencer.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                bureaux.map((bureau) => (
+                  <tr key={bureau.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{bureau.code}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{bureau.nomAgence}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{bureau.responsableSinistres}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{bureau.telephone}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{bureau.email}</td>
+                    <td className="px-6 py-4 text-sm space-x-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => openModal(bureau)}
+                        className="inline-flex"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => handleDelete(bureau.id)}
+                        className="inline-flex"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -173,54 +242,51 @@ export default function BureauxPage() {
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <Input
+                <InputField
                   label="Code bureau"
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                  name="code"
                   required
+                  placeholder="Ex: AXA001, ALLIANZ01"
                 />
-                <Input
+                <InputField
                   label="Nom de l'agence"
-                  value={formData.nomAgence}
-                  onChange={(e) => setFormData({ ...formData, nomAgence: e.target.value })}
+                  name="nomAgence"
                   required
+                  placeholder="Ex: AXA Assurances Dakar"
                 />
               </div>
               
-              <Input
+              <InputField
                 label="Responsable sinistres"
-                value={formData.responsableSinistres}
-                onChange={(e) => setFormData({ ...formData, responsableSinistres: e.target.value })}
+                name="responsableSinistres"
                 required
+                placeholder="Ex: Amadou Diallo"
               />
               
               <div className="grid grid-cols-2 gap-4">
-                <Input
+                <InputField
                   label="Téléphone"
+                  name="telephone"
                   type="tel"
-                  value={formData.telephone}
-                  onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
                   required
+                  placeholder="Ex: +221 33 123 45 67"
                 />
-                <Input
+                <InputField
                   label="Email"
+                  name="email"
                   type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
+                  placeholder="Ex: sinistres@axa.sn"
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
-                <textarea
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  rows={3}
-                  value={formData.adresse}
-                  onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
-                  required
-                />
-              </div>
+              <InputField
+                label="Adresse"
+                name="adresse"
+                required
+                rows={3}
+                placeholder="Ex: Avenue Léopold Sédar Senghor, Dakar"
+              />
               
               <div className="flex justify-end space-x-3 pt-4">
                 <Button type="button" variant="secondary" onClick={closeModal}>
