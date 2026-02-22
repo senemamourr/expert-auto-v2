@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import LoginPage from '@/pages/LoginPage';
 import DashboardPage from '@/pages/DashboardPage';
@@ -13,10 +13,20 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const initAuth = useAuthStore((state) => state.initAuth);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     initAuth();
+    setIsInitialized(true);
   }, [initAuth]);
+
+  if (!isInitialized) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-gray-500">Chargement...</div>
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>
