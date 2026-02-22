@@ -1,5 +1,20 @@
 import { Router } from 'express';
+import { bureauxController } from '../controllers/bureauxController';
+import { authenticate } from '../middlewares/auth';
+
 const router = Router();
-router.get('/', (req, res) => res.json({ bureaux: [] }));
-router.post('/', (req, res) => res.json({ bureau: req.body }));
+
+// Toutes les routes nécessitent l'authentification
+router.use(authenticate);
+
+// Routes CRUD
+router.get('/', bureauxController.getAll);
+router.get('/:id', bureauxController.getById);
+router.post('/', bureauxController.create);
+router.put('/:id', bureauxController.update);
+router.delete('/:id', bureauxController.delete);
+
+// Route spéciale pour recherche par code (pour l'autocomplétion)
+router.get('/code/:code', bureauxController.getByCode);
+
 export default router;
