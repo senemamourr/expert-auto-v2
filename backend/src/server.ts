@@ -1,3 +1,5 @@
+import bureauxRoutes from './routes/bureaux';
+app.use('/api/bureaux', bureauxRoutes);
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
