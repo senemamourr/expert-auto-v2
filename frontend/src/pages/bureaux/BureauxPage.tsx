@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { MainLayout } from '@/layouts/MainLayout';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { FormInput } from '@/components/ui/FormInput';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { bureauxService } from '@/services/api';
 import type { Bureau } from '@/types';
@@ -29,11 +30,28 @@ export default function BureauxPage() {
     try {
       const data = await bureauxService.getAll();
       setBureaux(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur chargement bureaux:', error);
-      alert('Erreur lors du chargement des bureaux');
+      // Si 404, backend pas encore configuré - c'est normal
+      if (error.response?.status === 404) {
+        console.log('API bureaux pas encore disponible');
+        setBureaux([]);
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    // Effacer l'erreur du champ modifié
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
     }
   };
 
@@ -41,14 +59,15 @@ export default function BureauxPage() {
     const newErrors: Record<string, string> = {};
     
     if (!formData.code.trim()) newErrors.code = 'Le code est requis';
-    if (!formData.nomAgence.trim()) newErrors.nomAgence = 'Le nom de l\'agence est requis';
+    if (!formData.nomAgence.trim()) newErrors.nomAgence = 'Le nom de l agence est requis';
     if (!formData.responsableSinistres.trim()) newErrors.responsableSinistres = 'Le responsable est requis';
     if (!formData.telephone.trim()) newErrors.telephone = 'Le téléphone est requis';
-    if (!formData.email.trim()) newErrors.email = 'L\'email est requis';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    if (!formData.email.trim()) {
+      newErrors.email = 'L email est requis';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Email invalide';
     }
-    if (!formData.adresse.trim()) newErrors.adresse = 'L\'adresse est requise';
+    if (!formData.adresse.trim()) newErrors.adresse = 'L adresse est requise';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -71,7 +90,7 @@ export default function BureauxPage() {
       closeModal();
     } catch (error: any) {
       console.error('Erreur sauvegarde:', error);
-      const message = error.response?.data?.error || 'Erreur lors de la sauvegarde';
+      const message = error.response?.data?.error || 'Erreur lors de la sauvegarde. Vérifiez que le backend est configuré.';
       alert(message);
     }
   };
@@ -119,41 +138,6 @@ export default function BureauxPage() {
     setErrors({});
   };
 
-  const InputField = ({ label, name, type = 'text', required = false, placeholder = '', rows = undefined }: any) => {
-    const value = formData[name as keyof typeof formData];
-    const error = errors[name];
-    const isTextarea = rows !== undefined;
-    
-    return (
-      <div className="w-full">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </label>
-        {isTextarea ? (
-          <textarea
-            className={'w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ' + (error ? 'border-red-500' : 'border-gray-300')}
-            rows={rows}
-            value={value}
-            onChange={(e) => setFormData({ ...formData, [name]: e.target.value })}
-            placeholder={placeholder}
-            required={required}
-          />
-        ) : (
-          <input
-            type={type}
-            className={'w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ' + (error ? 'border-red-500' : 'border-gray-300')}
-            value={value}
-            onChange={(e) => setFormData({ ...formData, [name]: e.target.value })}
-            placeholder={placeholder}
-            required={required}
-          />
-        )}
-        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
-      </div>
-    );
-  };
-
   if (loading) {
     return (
       <MainLayout title="Gestion des Bureaux">
@@ -168,7 +152,7 @@ export default function BureauxPage() {
     <MainLayout title="Gestion des Bureaux">
       <Card 
         title="Bureaux d'assurance" 
-        description={'Gestion de ' + bureaux.length + ' compagnies d\'assurance'}
+        description={'Gestion de ' + bureaux.length + ' compagnies d assurance'}
       >
         <div className="mb-4">
           <Button onClick={() => openModal()} className="flex items-center">
@@ -242,50 +226,68 @@ export default function BureauxPage() {
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <InputField
+                <FormInput
                   label="Code bureau"
                   name="code"
+                  value={formData.code}
+                  onChange={handleInputChange}
                   required
                   placeholder="Ex: AXA001, ALLIANZ01"
+                  error={errors.code}
                 />
-                <InputField
-                  label="Nom de l'agence"
+                <FormInput
+                  label="Nom de l agence"
                   name="nomAgence"
+                  value={formData.nomAgence}
+                  onChange={handleInputChange}
                   required
                   placeholder="Ex: AXA Assurances Dakar"
+                  error={errors.nomAgence}
                 />
               </div>
               
-              <InputField
+              <FormInput
                 label="Responsable sinistres"
                 name="responsableSinistres"
+                value={formData.responsableSinistres}
+                onChange={handleInputChange}
                 required
                 placeholder="Ex: Amadou Diallo"
+                error={errors.responsableSinistres}
               />
               
               <div className="grid grid-cols-2 gap-4">
-                <InputField
+                <FormInput
                   label="Téléphone"
                   name="telephone"
                   type="tel"
+                  value={formData.telephone}
+                  onChange={handleInputChange}
                   required
                   placeholder="Ex: +221 33 123 45 67"
+                  error={errors.telephone}
                 />
-                <InputField
+                <FormInput
                   label="Email"
                   name="email"
                   type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
                   required
                   placeholder="Ex: sinistres@axa.sn"
+                  error={errors.email}
                 />
               </div>
               
-              <InputField
+              <FormInput
                 label="Adresse"
                 name="adresse"
+                value={formData.adresse}
+                onChange={handleInputChange}
                 required
                 rows={3}
                 placeholder="Ex: Avenue Léopold Sédar Senghor, Dakar"
+                error={errors.adresse}
               />
               
               <div className="flex justify-end space-x-3 pt-4">
