@@ -1,86 +1,115 @@
 import axios from 'axios';
-import type { User, Bureau, Rapport, Statistiques } from '@/types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-export const api = axios.create({
+const api = axios.create({
   baseURL: API_URL,
-  headers: { 'Content-Type': 'application/json' }
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = 'Bearer ' + token;
+// Intercepteur pour ajouter le token à CHAQUE requête
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = 'Bearer ' + token;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
   }
-  return config;
-});
+);
 
-// Auth
+// Intercepteur pour gérer les erreurs 401
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token invalide ou expiré
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Auth Service
 export const authService = {
   async login(email: string, password: string) {
-    const { data } = await api.post('/auth/login', { email, password });
-    return data;
+    const response = await api.post('/auth/login', { email, password });
+    return response.data;
   },
-  logout() {
+  
+  async logout() {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
   }
 };
 
-// Bureaux
+// Bureaux Service
 export const bureauxService = {
-  async getAll(): Promise<Bureau[]> {
-    const { data } = await api.get('/bureaux');
-    return data.bureaux || data;
+  async getAll() {
+    const response = await api.get('/bureaux');
+    return response.data.bureaux || [];
   },
-  async getById(id: string): Promise<Bureau> {
-    const { data } = await api.get('/bureaux/' + id);
-    return data.bureau || data;
+  
+  async getById(id: string) {
+    const response = await api.get('/bureaux/' + id);
+    return response.data.bureau;
   },
-  async create(bureau: Omit<Bureau, 'id'>): Promise<Bureau> {
-    const { data } = await api.post('/bureaux', bureau);
-    return data.bureau || data;
+  
+  async create(data: any) {
+    const response = await api.post('/bureaux', data);
+    return response.data.bureau;
   },
-  async update(id: string, bureau: Partial<Bureau>): Promise<Bureau> {
-    const { data } = await api.put('/bureaux/' + id, bureau);
-    return data.bureau || data;
+  
+  async update(id: string, data: any) {
+    const response = await api.put('/bureaux/' + id, data);
+    return response.data.bureau;
   },
-  async delete(id: string): Promise<void> {
-    await api.delete('/bureaux/' + id);
+  
+  async delete(id: string) {
+    const response = await api.delete('/bureaux/' + id);
+    return response.data;
   }
 };
 
-// Rapports
+// Rapports Service
 export const rapportsService = {
-  async getAll(): Promise<Rapport[]> {
-    const { data } = await api.get('/rapports');
-    return data.rapports || data;
+  async getAll() {
+    const response = await api.get('/rapports');
+    return response.data.rapports || [];
   },
-  async getById(id: string): Promise<Rapport> {
-    const { data } = await api.get('/rapports/' + id);
-    return data.rapport || data;
+  
+  async getById(id: string) {
+    const response = await api.get('/rapports/' + id);
+    return response.data.rapport;
   },
-  async create(rapport: Rapport): Promise<Rapport> {
-    const { data } = await api.post('/rapports', rapport);
-    return data.rapport || data;
+  
+  async create(data: any) {
+    const response = await api.post('/rapports', data);
+    return response.data.rapport;
   },
-  async update(id: string, rapport: Partial<Rapport>): Promise<Rapport> {
-    const { data } = await api.put('/rapports/' + id, rapport);
-    return data.rapport || data;
+  
+  async update(id: string, data: any) {
+    const response = await api.put('/rapports/' + id, data);
+    return response.data.rapport;
   },
-  async delete(id: string): Promise<void> {
-    await api.delete('/rapports/' + id);
-  },
-  async getBySinistre(numeroSinistre: string): Promise<Rapport[]> {
-    const { data } = await api.get('/rapports?sinistre=' + numeroSinistre);
-    return data.rapports || data;
+  
+  async delete(id: string) {
+    const response = await api.delete('/rapports/' + id);
+    return response.data;
   }
 };
 
-// Statistiques
+// Stats Service
 export const statsService = {
-  async get(): Promise<Statistiques> {
-    const { data } = await api.get('/stats/revenus');
-    return data;
+  async get() {
+    const response = await api.get('/stats');
+    return response.data;
   }
 };
