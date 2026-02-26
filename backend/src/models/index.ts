@@ -9,8 +9,6 @@ export { default as Choc } from './Choc';
 export { default as Fourniture } from './Fourniture';
 export { default as Honoraire } from './Honoraire';
 export { default as Bareme } from './Bareme';
-export { default as Bureau } from './Bureau';
-export { default as User } from './User';
 
 // Import des relations
 import './relations';

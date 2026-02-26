@@ -71,11 +71,6 @@ Rapport.init(
       comment: 'Date du sinistre',
       validate: {
         isDate: true,
-        isBefore: function(value: string) {
-          if (new Date(value) > this.dateVisite) {
-            throw new Error('La date du sinistre doit être antérieure à la date de visite');
-          }
-        },
       },
     },
     dateVisite: {
@@ -111,6 +106,13 @@ Rapport.init(
     tableName: 'rapports',
     underscored: true,
     timestamps: true,
+    validate: {
+      dateSinistreBeforeDateVisite() {
+        if (this.dateSinistre && this.dateVisite && this.dateSinistre > this.dateVisite) {
+          throw new Error('La date du sinistre doit être antérieure à la date de visite');
+        }
+      },
+    },
   }
 );
 
