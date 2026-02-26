@@ -1,3 +1,8 @@
+// En haut
+import bureauxRoutes from './routes/bureaux';
+
+// Dans les routes
+app.use('/api/bureaux', bureauxRoutes);
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
