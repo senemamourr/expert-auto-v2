@@ -23,16 +23,12 @@ api.interceptors.request.use(
   }
 );
 
-// Intercepteur pour gérer les erreurs 401
+// Intercepteur SANS redirection automatique
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token invalide ou expiré
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-    }
+    // On ne redirige PAS automatiquement, on laisse les composants gérer l'erreur
+    console.error('API Error:', error.response?.status, error.response?.data);
     return Promise.reject(error);
   }
 );
@@ -53,8 +49,16 @@ export const authService = {
 // Bureaux Service
 export const bureauxService = {
   async getAll() {
-    const response = await api.get('/bureaux');
-    return response.data.bureaux || [];
+    try {
+      const response = await api.get('/bureaux');
+      return response.data.bureaux || [];
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        console.log('Routes bureaux pas encore installées sur le backend');
+        return [];
+      }
+      throw error;
+    }
   },
   
   async getById(id: string) {
@@ -81,8 +85,16 @@ export const bureauxService = {
 // Rapports Service
 export const rapportsService = {
   async getAll() {
-    const response = await api.get('/rapports');
-    return response.data.rapports || [];
+    try {
+      const response = await api.get('/rapports');
+      return response.data.rapports || [];
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        console.log('Routes rapports pas encore installées');
+        return [];
+      }
+      throw error;
+    }
   },
   
   async getById(id: string) {
@@ -109,7 +121,17 @@ export const rapportsService = {
 // Stats Service
 export const statsService = {
   async get() {
-    const response = await api.get('/stats');
-    return response.data;
+    try {
+      const response = await api.get('/stats');
+      return response.data;
+    } catch (error) {
+      console.log('Stats pas disponibles');
+      return {
+        totalRapports: 0,
+        rapportsMois: 0,
+        revenusMois: 0,
+        totalBureaux: 0
+      };
+    }
   }
 };
