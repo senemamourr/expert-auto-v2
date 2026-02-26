@@ -5,6 +5,7 @@ import { connectDatabase } from './config/database';
 import { initializeDatabase } from './config/initDb';
 import authRoutes from './routes/auth';
 import bureauxRoutes from './routes/bureaux';
+import './models/relations';
 
 dotenv.config();
 

@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed": "tsx src/seed.ts",
+	"seed:baremes": "tsx src/seedBaremes.ts",
     "postinstall": "npm run build"
   },
   "dependencies": {
