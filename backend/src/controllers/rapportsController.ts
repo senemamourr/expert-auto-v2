@@ -5,8 +5,8 @@ import Assure from '../models/Assure';
 import Choc from '../models/Choc';
 import Fourniture from '../models/Fourniture';
 import Honoraire from '../models/Honoraire';
-import Bureau from '../models/Bureau';
-import User from '../models/User';
+import { Bureau } from '../models/Bureau';
+import { User } from '../models/User';
 import { calculateTauxHoraire, calculateVetuste, calculateFraisDeplacement, calculateHonoraires } from '../services/calculService';
 
 /**
