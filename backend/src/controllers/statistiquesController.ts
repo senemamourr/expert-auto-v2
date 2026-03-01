@@ -106,7 +106,7 @@ export const getRevenusMensuels = async (req: Request, res: Response) => {
     const honoraires = await Honoraire.findAll({
       attributes: [
         [fn('EXTRACT', literal('MONTH FROM "Honoraire"."created_at"')), 'mois'],
-        [fn('SUM', col('montant_total')), 'total'],
+        [fn('SUM', col('Honoraire.montant_total')), 'total'],
         [fn('COUNT', col('Honoraire.id')), 'nombreRapports']
       ],
       include: [{
@@ -265,7 +265,7 @@ export const getStatsByBureau = async (req: Request, res: Response) => {
       attributes: [
         'bureauId',
         [fn('COUNT', col('Rapport.id')), 'nombreRapports'],
-        [fn('SUM', col('montant_total')), 'montantTotal']
+        [fn('SUM', col('Rapport.montant_total')), 'montantTotal']
       ],
       include: [{
         model: Bureau,
@@ -310,7 +310,7 @@ export const getStatsByType = async (req: Request, res: Response) => {
       attributes: [
         'typeRapport',
         [fn('COUNT', col('id')), 'nombre'],
-        [fn('SUM', col('montant_total')), 'montantTotal']
+        [fn('SUM', col('Rapport.montant_total')), 'montantTotal']
       ],
       group: ['typeRapport'],
       raw: true

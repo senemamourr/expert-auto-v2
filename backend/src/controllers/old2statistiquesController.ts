@@ -28,7 +28,7 @@ export const getKPIs = async (req: Request, res: Response) => {
       raw: true
     });
 
-    // Montant total tous rapports
+    // Montant total tous rapports (utiliser Sequelize, pas SQL brut)
     const montantTotal = await Rapport.sum('montantTotal') || 0;
 
     // Montant total honoraires
@@ -102,11 +102,11 @@ export const getRevenusMensuels = async (req: Request, res: Response) => {
     const debutAnnee = new Date(`${annee}-01-01`);
     const finAnnee = new Date(`${annee}-12-31 23:59:59`);
 
-    // Honoraires par mois - UTILISER created_at (snake_case)
+    // Honoraires par mois - UTILISER snake_case pour TOUTES les colonnes
     const honoraires = await Honoraire.findAll({
       attributes: [
         [fn('EXTRACT', literal('MONTH FROM "Honoraire"."created_at"')), 'mois'],
-        [fn('SUM', col('montantTotal')), 'total'],
+        [fn('SUM', col('montant_total')), 'total'],
         [fn('COUNT', col('Honoraire.id')), 'nombreRapports']
       ],
       include: [{
@@ -172,7 +172,6 @@ export const getRecapHonoraires = async (req: Request, res: Response) => {
     const now = new Date();
 
     if (type === 'quinzaine') {
-      // Quinzaine actuelle (1-15 ou 16-fin du mois)
       const jour = now.getDate();
       if (jour <= 15) {
         dateDebut = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -184,19 +183,17 @@ export const getRecapHonoraires = async (req: Request, res: Response) => {
         groupeLabel = 'Seconde quinzaine';
       }
     } else if (type === 'mensuel') {
-      // Mois actuel ou spécifié
       const [annee, mois] = periode ? periode.toString().split('-') : [now.getFullYear(), now.getMonth() + 1];
       dateDebut = new Date(parseInt(annee.toString()), parseInt(mois.toString()) - 1, 1);
       dateFin = new Date(parseInt(annee.toString()), parseInt(mois.toString()), 0, 23, 59, 59);
       groupeLabel = `${['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'][parseInt(mois.toString()) - 1]} ${annee}`;
-    } else { // annuel
+    } else {
       const annee = periode ? parseInt(periode.toString()) : now.getFullYear();
       dateDebut = new Date(annee, 0, 1);
       dateFin = new Date(annee, 11, 31, 23, 59, 59);
       groupeLabel = `Année ${annee}`;
     }
 
-    // Récupérer tous les honoraires de la période
     const honoraires = await Honoraire.findAll({
       include: [{
         model: Rapport,
@@ -214,7 +211,6 @@ export const getRecapHonoraires = async (req: Request, res: Response) => {
       }]
     });
 
-    // Calculer les totaux
     let totalHonoraires = 0;
     let totalFraisDeplacement = 0;
     let nombreRapports = honoraires.length;
@@ -269,7 +265,7 @@ export const getStatsByBureau = async (req: Request, res: Response) => {
       attributes: [
         'bureauId',
         [fn('COUNT', col('Rapport.id')), 'nombreRapports'],
-        [fn('SUM', col('montantTotal')), 'montantTotal']
+        [fn('SUM', col('montant_total')), 'montantTotal']
       ],
       include: [{
         model: Bureau,
@@ -314,7 +310,7 @@ export const getStatsByType = async (req: Request, res: Response) => {
       attributes: [
         'typeRapport',
         [fn('COUNT', col('id')), 'nombre'],
-        [fn('SUM', col('montantTotal')), 'montantTotal']
+        [fn('SUM', col('montant_total')), 'montantTotal']
       ],
       group: ['typeRapport'],
       raw: true
@@ -352,7 +348,7 @@ export const getEvolutionRapports = async (req: Request, res: Response) => {
       groupBy = fn('DATE', col('created_at'));
     } else if (periode === 'semaine') {
       groupBy = fn('DATE_TRUNC', 'week', col('created_at'));
-    } else { // mois
+    } else {
       groupBy = fn('DATE_TRUNC', 'month', col('created_at'));
     }
 
@@ -384,7 +380,7 @@ export const getEvolutionRapports = async (req: Request, res: Response) => {
 };
 
 /**
- * Top véhicules expertisés (marques les plus fréquentes)
+ * Top véhicules expertisés
  * GET /api/stats/vehicules
  */
 export const getStatsVehicules = async (req: Request, res: Response) => {
