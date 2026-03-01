@@ -415,10 +415,13 @@ export const recalculateRapport = async (req: Request, res: Response) => {
     // Calculer le total
     let montantTotal = 0;
 
+    // Récupérer les chocs avec cast vers any pour éviter l'erreur TypeScript
+    const rapportData = rapport as any;
+
     // Somme des fournitures de tous les chocs
-    if (rapport.chocs) {
-      for (const choc of rapport.chocs) {
-        if (choc.fournitures) {
+    if (rapportData.chocs && Array.isArray(rapportData.chocs)) {
+      for (const choc of rapportData.chocs) {
+        if (choc.fournitures && Array.isArray(choc.fournitures)) {
           for (const fourniture of choc.fournitures) {
             montantTotal += parseFloat(fourniture.prixTotal.toString());
           }
