@@ -4,33 +4,11 @@ import Assure from './Assure';
 import Choc from './Choc';
 import Fourniture from './Fourniture';
 import Honoraire from './Honoraire';
-import { Bureau } from './Bureau';
-import { User } from './User';
 
 /**
  * Définition des relations entre les modèles
  * À importer dans server.ts après la connexion à la base de données
  */
-
-// Bureau → Rapports (1:N)
-Bureau.hasMany(Rapport, {
-  foreignKey: 'bureauId',
-  as: 'rapports',
-});
-Rapport.belongsTo(Bureau, {
-  foreignKey: 'bureauId',
-  as: 'bureau',
-});
-
-// User → Rapports (1:N)
-User.hasMany(Rapport, {
-  foreignKey: 'userId',
-  as: 'rapports',
-});
-Rapport.belongsTo(User, {
-  foreignKey: 'userId',
-  as: 'user',
-});
 
 // Rapport → Vehicule (1:1)
 Rapport.hasOne(Vehicule, {
@@ -94,6 +72,4 @@ export {
   Choc,
   Fourniture,
   Honoraire,
-  Bureau,
-  User,
 };
