@@ -102,7 +102,7 @@ export const getRevenusMensuels = async (req: Request, res: Response) => {
     const debutAnnee = new Date(`${annee}-01-01`);
     const finAnnee = new Date(`${annee}-12-31 23:59:59`);
 
-    // Honoraires par mois - UTILISER snake_case pour TOUTES les colonnes
+    // Honoraires par mois - UNIQUEMENT LES RAPPORTS TERMINÉS
     const honoraires = await Honoraire.findAll({
       attributes: [
         [fn('EXTRACT', literal('MONTH FROM "Honoraire"."created_at"')), 'mois'],
@@ -116,7 +116,8 @@ export const getRevenusMensuels = async (req: Request, res: Response) => {
         where: {
           createdAt: {
             [Op.between]: [debutAnnee, finAnnee]
-          }
+          },
+          statut: 'termine' // UNIQUEMENT LES RAPPORTS TERMINÉS
         }
       }],
       group: [fn('EXTRACT', literal('MONTH FROM "Honoraire"."created_at"'))],
@@ -201,7 +202,8 @@ export const getRecapHonoraires = async (req: Request, res: Response) => {
         where: {
           createdAt: {
             [Op.between]: [dateDebut, dateFin]
-          }
+          },
+          statut: 'termine' // UNIQUEMENT LES RAPPORTS TERMINÉS
         },
         include: [{
           model: Bureau,
