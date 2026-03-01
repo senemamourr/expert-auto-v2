@@ -7,7 +7,6 @@ import authRoutes from './routes/auth';
 import bureauxRoutes from './routes/bureaux';
 import rapportsRoutes from './routes/rapports';
 import baremesRoutes from './routes/baremes';
-import statistiquesRoutes from './routes/statistiques';
 import seedRoute from './routes/seedRoute';
 import './models/relations';
 
@@ -24,7 +23,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/bureaux', bureauxRoutes);
 app.use('/api/rapports', rapportsRoutes);
 app.use('/api/baremes', baremesRoutes);
-app.use('/api/stats', statistiquesRoutes);
 app.use('/api/seed', seedRoute);
 
 connectDatabase().then(async () => {
