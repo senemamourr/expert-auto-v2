@@ -19,7 +19,7 @@ router.post('/baremes', async (req, res) => {
       await Bareme.destroy({ where: {}, truncate: true });
     }
     
-    // Données des barèmes
+    // Données des barèmes (valeurs corrigées pour DECIMAL(10,2))
     const baremesData = [
       // TAUX HORAIRES
       { type: 'taux_horaire' as const, genreVehicule: 'VP', valeur: 15000, unite: 'FCFA/heure', actif: true },
@@ -33,21 +33,21 @@ router.post('/baremes', async (req, res) => {
       { type: 'vetuste' as const, ageVehiculeMin: 3, ageVehiculeMax: 5, valeur: 30, unite: '%', actif: true },
       { type: 'vetuste' as const, ageVehiculeMin: 5, ageVehiculeMax: 8, valeur: 40, unite: '%', actif: true },
       { type: 'vetuste' as const, ageVehiculeMin: 8, ageVehiculeMax: 12, valeur: 50, unite: '%', actif: true },
-      { type: 'vetuste' as const, ageVehiculeMin: 12, ageVehiculeMax: 999, valeur: 60, unite: '%', actif: true },
+      { type: 'vetuste' as const, ageVehiculeMin: 12, ageVehiculeMax: 100, valeur: 60, unite: '%', actif: true },
       
-      // FRAIS DÉPLACEMENT
+      // FRAIS DÉPLACEMENT (kmMax corrigé)
       { type: 'deplacement' as const, kmMin: 0, kmMax: 10, valeur: 5000, unite: 'FCFA', actif: true },
       { type: 'deplacement' as const, kmMin: 10, kmMax: 30, valeur: 10000, unite: 'FCFA', actif: true },
       { type: 'deplacement' as const, kmMin: 30, kmMax: 50, valeur: 15000, unite: 'FCFA', actif: true },
       { type: 'deplacement' as const, kmMin: 50, kmMax: 100, valeur: 25000, unite: 'FCFA', actif: true },
-      { type: 'deplacement' as const, kmMin: 100, kmMax: 999999, valeur: 500, unite: 'FCFA/km', actif: true },
+      { type: 'deplacement' as const, kmMin: 100, kmMax: 10000, valeur: 500, unite: 'FCFA/km', actif: true },
       
-      // HONORAIRES
+      // HONORAIRES (montantMax corrigé pour DECIMAL(10,2) = max 99999999.99)
       { type: 'honoraire' as const, montantMin: 0, montantMax: 500000, valeur: 25000, unite: 'FCFA', actif: true },
       { type: 'honoraire' as const, montantMin: 500000, montantMax: 1000000, valeur: 40000, unite: 'FCFA', actif: true },
       { type: 'honoraire' as const, montantMin: 1000000, montantMax: 2000000, valeur: 60000, unite: 'FCFA', actif: true },
       { type: 'honoraire' as const, montantMin: 2000000, montantMax: 5000000, valeur: 100000, unite: 'FCFA', actif: true },
-      { type: 'honoraire' as const, montantMin: 5000000, montantMax: 999999999, valeur: 150000, unite: 'FCFA', actif: true },
+      { type: 'honoraire' as const, montantMin: 5000000, montantMax: 50000000, valeur: 150000, unite: 'FCFA', actif: true },
     ];
     
     // Créer les barèmes
