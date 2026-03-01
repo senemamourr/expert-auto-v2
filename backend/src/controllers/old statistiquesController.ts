@@ -102,12 +102,12 @@ export const getRevenusMensuels = async (req: Request, res: Response) => {
     const debutAnnee = new Date(`${annee}-01-01`);
     const finAnnee = new Date(`${annee}-12-31 23:59:59`);
 
-    // Honoraires par mois - UTILISER created_at (snake_case)
+    // Honoraires par mois
     const honoraires = await Honoraire.findAll({
       attributes: [
-        [fn('EXTRACT', literal('MONTH FROM "Honoraire"."created_at"')), 'mois'],
+        [fn('EXTRACT', literal('MONTH FROM "createdAt"')), 'mois'],
         [fn('SUM', col('montantTotal')), 'total'],
-        [fn('COUNT', col('Honoraire.id')), 'nombreRapports']
+        [fn('COUNT', col('id')), 'nombreRapports']
       ],
       include: [{
         model: Rapport,
@@ -119,8 +119,8 @@ export const getRevenusMensuels = async (req: Request, res: Response) => {
           }
         }
       }],
-      group: [fn('EXTRACT', literal('MONTH FROM "Honoraire"."created_at"'))],
-      order: [[fn('EXTRACT', literal('MONTH FROM "Honoraire"."created_at"')), 'ASC']],
+      group: [fn('EXTRACT', literal('MONTH FROM "createdAt"'))],
+      order: [[fn('EXTRACT', literal('MONTH FROM "createdAt"')), 'ASC']],
       raw: true
     });
 
@@ -276,7 +276,7 @@ export const getStatsByBureau = async (req: Request, res: Response) => {
         as: 'bureau',
         attributes: ['code', 'nomAgence']
       }],
-      group: ['bureauId', 'bureau.id', 'bureau.code', 'bureau.nom_agence'],
+      group: ['bureauId', 'bureau.id', 'bureau.code', 'bureau.nomAgence'],
       raw: true,
       nest: true
     });
@@ -347,13 +347,17 @@ export const getEvolutionRapports = async (req: Request, res: Response) => {
     const { periode = 'mois', nombre = 12 } = req.query;
 
     let groupBy: any;
+    let dateFormat: string;
 
     if (periode === 'jour') {
-      groupBy = fn('DATE', col('created_at'));
+      groupBy = fn('DATE', col('createdAt'));
+      dateFormat = 'DATE';
     } else if (periode === 'semaine') {
-      groupBy = fn('DATE_TRUNC', 'week', col('created_at'));
+      groupBy = fn('DATE_TRUNC', 'week', col('createdAt'));
+      dateFormat = 'WEEK';
     } else { // mois
-      groupBy = fn('DATE_TRUNC', 'month', col('created_at'));
+      groupBy = fn('DATE_TRUNC', 'month', col('createdAt'));
+      dateFormat = 'MONTH';
     }
 
     const stats = await Rapport.findAll({
