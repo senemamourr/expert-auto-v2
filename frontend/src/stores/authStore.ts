@@ -1,4 +1,5 @@
 // Store Zustand pour l'authentification
+// Version compatible avec le code existant
 
 import { create } from 'zustand';
 import authService, { LoginCredentials, LoginResponse } from '../services/api/auth.service';
@@ -10,10 +11,12 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   
-  // Actions
+  // Actions (compatibles avec l'ancien code)
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
+  initAuth: () => void;  // Alias pour checkAuth
   checkAuth: () => void;
+  setAuth: (user: LoginResponse['user'], token: string) => void;  // Pour LoginPage
   clearError: () => void;
 }
 
@@ -67,6 +70,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
+  // Méthode pour vérifier l'authentification au démarrage
   checkAuth: () => {
     const isAuth = authService.isAuthenticated();
     const user = authService.getCurrentUser();
@@ -76,6 +80,31 @@ export const useAuthStore = create<AuthState>((set) => ({
       isAuthenticated: isAuth,
       user,
       token,
+    });
+  },
+
+  // Alias pour compatibilité avec App.tsx
+  initAuth: () => {
+    const isAuth = authService.isAuthenticated();
+    const user = authService.getCurrentUser();
+    const token = authService.getToken();
+    
+    set({
+      isAuthenticated: isAuth,
+      user,
+      token,
+    });
+  },
+
+  // Méthode pour LoginPage (compatibilité)
+  setAuth: (user, token) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    
+    set({
+      user,
+      token,
+      isAuthenticated: true,
     });
   },
 
