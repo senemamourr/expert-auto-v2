@@ -1,7 +1,7 @@
 // Service API pour les statistiques
 
 import apiClient from './api.client';
-import {
+import type {
   KPIsResponse,
   RevenusResponse,
   RecapHonorairesResponse,
@@ -12,7 +12,7 @@ import {
   RevenusParams,
   RecapHonorairesParams,
   EvolutionParams,
-} from '../types/stats.types';
+} from '@/types';
 
 class StatsService {
   /**

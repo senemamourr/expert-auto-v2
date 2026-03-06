@@ -1,13 +1,13 @@
 // Service API pour les barèmes
 
 import apiClient from './api.client';
-import {
+import type {
   Bareme,
   BaremesResponse,
   CreateBaremeDTO,
   UpdateBaremeDTO,
   BaremeFilters,
-} from '../types/bareme.types';
+} from '@/types';
 
 class BaremesService {
   /**

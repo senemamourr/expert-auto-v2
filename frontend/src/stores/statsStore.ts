@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import statsService from '../services/api/stats.service';
-import {
+import type {
   KPIs,
   RevenusResponse,
   RecapHonorairesResponse,
@@ -13,7 +13,7 @@ import {
   RevenusParams,
   RecapHonorairesParams,
   EvolutionParams,
-} from '../types/stats.types';
+} from '@/types';
 
 interface StatsState {
   kpis: KPIs | null;

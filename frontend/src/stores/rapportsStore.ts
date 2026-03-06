@@ -2,13 +2,13 @@
 
 import { create } from 'zustand';
 import rapportsService from '../services/api/rapports.service';
-import {
+import type {
   Rapport,
   CreateRapportDTO,
   UpdateRapportDTO,
   RapportsFilters,
   StatutRapport,
-} from '../types/rapport.types';
+} from '@/types';
 
 interface RapportsState {
   rapports: Rapport[];

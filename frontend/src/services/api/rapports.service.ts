@@ -1,14 +1,14 @@
 // Service API pour les rapports
 
 import apiClient from './api.client';
-import {
+import type {
   Rapport,
   ListeRapportsResponse,
   RapportResponse,
   CreateRapportDTO,
   UpdateRapportDTO,
   RapportsFilters,
-} from '../types/rapport.types';
+} from '@/types';
 
 class RapportsService {
   /**

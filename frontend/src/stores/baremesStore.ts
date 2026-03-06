@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import baremesService from '../services/api/baremes.service';
-import { Bareme, BaremesResponse, CreateBaremeDTO, UpdateBaremeDTO } from '../types/bareme.types';
+import type { Bareme, BaremesResponse, CreateBaremeDTO, UpdateBaremeDTO } from '@/types';
 
 interface BaremesState {
   baremes: BaremesResponse | null;

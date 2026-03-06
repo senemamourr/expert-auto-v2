@@ -31,10 +31,12 @@ export interface Bureau {
   id: string;
   code: string;
   nomAgence: string;
-  responsableSinistres?: string;
-  telephone?: string;
-  email?: string;
-  adresse?: string;
+  responsableSinistres: string;
+  telephone: string;
+  email: string;
+  adresse: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface User {
