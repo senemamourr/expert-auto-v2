@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
+import { MainLayout } from '@/layouts/MainLayout';
 import { useStatsStore } from '@/stores/statsStore';
-import { TrendingUp, TrendingDown, FileText, DollarSign, Calendar, CheckCircle } from 'lucide-react';
+import { TrendingUp, FileText, DollarSign, Calendar, CheckCircle } from 'lucide-react';
 
 export default function DashboardPage() {
   const { kpis, revenus, fetchKPIs, fetchRevenus, isLoading, error } = useStatsStore();
 
   useEffect(() => {
-    // Charger les données au montage
     fetchKPIs();
     fetchRevenus({ annee: new Date().getFullYear() });
   }, []);
@@ -18,27 +18,38 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <div className="p-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800">Erreur : {error}</p>
+      <MainLayout title="Dashboard">
+        <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-lg shadow-sm">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700 font-medium">Erreur de chargement : {error}</p>
+            </div>
+          </div>
           <button
             onClick={() => {
               fetchKPIs();
               fetchRevenus();
             }}
-            className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             Réessayer
           </button>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* En-tête */}
-      <div>
+    <MainLayout>
+      {/* Pas de title prop car on va mettre un header custom */}
+      
+      {/* Header custom avec date */}
+      <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-gray-600 mt-1">
           {new Date().toLocaleDateString('fr-FR', { 
@@ -61,7 +72,7 @@ export default function DashboardPage() {
           ))}
         </div>
       ) : (
-        <>
+        <div className="space-y-6">
           {/* Cartes KPIs */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Total Rapports */}
@@ -219,8 +230,8 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-        </>
+        </div>
       )}
-    </div>
+    </MainLayout>
   );
 }
