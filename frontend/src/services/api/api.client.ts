@@ -1,13 +1,12 @@
 // Client API Axios configuré avec intercepteurs
-
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 // URL de base de l'API
-const API_URL = import.meta.env.VITE_API_URL || 'https://expert-auto-v2-production.up.railway.app';
+const API_URL = import.meta.env.VITE_API_URL || 'https://expert-auto-v2-production.up.railway.app/api';
 
 // Créer l'instance Axios
 const apiClient: AxiosInstance = axios.create({
-  baseURL: `${API_URL}/api`,
+  baseURL: API_URL,  // N'ajoute PLUS /api ici !
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
