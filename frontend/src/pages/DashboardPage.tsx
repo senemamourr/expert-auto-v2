@@ -1,147 +1,274 @@
-import { useEffect, useState } from 'react';
-import { MainLayout } from '@/layouts/MainLayout';
-import { Card } from '@/components/ui/Card';
-import { FileText, Building2, TrendingUp, DollarSign } from 'lucide-react';
-import { statsService, rapportsService } from '@/services/api';
-import type { Statistiques, Rapport } from '@/types';
+import { useEffect } from 'react';
+import { useStatsStore } from '@/stores/statsStore';
+import { TrendingUp, TrendingDown, FileText, DollarSign, Calendar, CheckCircle } from 'lucide-react';
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Statistiques>({ 
-    totalRapports: 0, 
-    rapportsMois: 0, 
-    revenusMois: 0, 
-    tauxRealisation: 0 
-  });
-  const [recentRapports, setRecentRapports] = useState<Rapport[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { kpis, revenus, fetchKPIs, fetchRevenus, isLoading, error } = useStatsStore();
 
   useEffect(() => {
-    loadData();
+    // Charger les données au montage
+    fetchKPIs();
+    fetchRevenus({ annee: new Date().getFullYear() });
   }, []);
 
-  const loadData = async () => {
-    try {
-      const [statsData, rapportsData] = await Promise.all([
-        statsService.get().catch(() => stats),
-        rapportsService.getAll().catch(() => [])
-      ]);
-      setStats(statsData);
-      setRecentRapports(rapportsData.slice(0, 5));
-    } catch (error) {
-      console.error('Erreur chargement:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Calculer les revenus du mois en cours
+  const revenusMoisActuel = revenus?.revenus.find(
+    r => r.mois === new Date().getMonth() + 1
+  )?.total || 0;
 
-  const statCards = [
-    { 
-      title: 'Rapports totaux', 
-      value: stats.totalRapports, 
-      icon: FileText, 
-      color: 'bg-blue-500',
-      change: '+12%'
-    },
-    { 
-      title: 'Ce mois', 
-      value: stats.rapportsMois, 
-      icon: TrendingUp, 
-      color: 'bg-green-500',
-      change: '+8%'
-    },
-    { 
-      title: 'Revenus mensuels', 
-      value: stats.revenusMois.toLocaleString('fr-FR') + ' F CFA', 
-      icon: DollarSign, 
-      color: 'bg-purple-500',
-      change: '+15%'
-    },
-    { 
-      title: 'Bureaux actifs', 
-      value: '12', 
-      icon: Building2, 
-      color: 'bg-orange-500',
-      change: '+2'
-    },
-  ];
-
-  if (loading) {
+  if (error) {
     return (
-      <MainLayout title="Dashboard">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-500">Chargement...</div>
+      <div className="p-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">Erreur : {error}</p>
+          <button
+            onClick={() => {
+              fetchKPIs();
+              fetchRevenus();
+            }}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Réessayer
+          </button>
         </div>
-      </MainLayout>
+      </div>
     );
   }
 
   return (
-    <MainLayout title="Dashboard">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {statCards.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div className="space-y-6">
+      {/* En-tête */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600 mt-1">
+          {new Date().toLocaleDateString('fr-FR', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}
+        </p>
+      </div>
+
+      {/* Loading State */}
+      {isLoading && !kpis ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="bg-white rounded-lg shadow p-6 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
+              <div className="h-8 bg-gray-200 rounded w-3/4"></div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          {/* Cartes KPIs */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Total Rapports */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-2">{stat.value}</p>
-                  <p className="text-sm text-green-600 mt-1">{stat.change} ce mois</p>
+                  <p className="text-sm font-medium text-gray-600">Rapports totaux</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">
+                    {kpis?.totalRapports || 0}
+                  </p>
+                  <p className="text-sm text-green-600 mt-2 flex items-center">
+                    <TrendingUp className="h-4 w-4 mr-1" />
+                    +{kpis?.rapportsMois || 0} ce mois
+                  </p>
                 </div>
-                <div className={'w-12 h-12 rounded-lg flex items-center justify-center text-white ' + stat.color}>
-                  <Icon className="w-6 h-6" />
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <FileText className="h-8 w-8 text-blue-600" />
                 </div>
               </div>
             </div>
-          );
-        })}
-      </div>
 
-      {/* Recent Reports */}
-      <Card title="Rapports récents" description="Les 5 derniers rapports créés">
-        {recentRapports.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            Aucun rapport pour le moment
+            {/* Rapports ce mois */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Ce mois</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">
+                    {kpis?.rapportsMois || 0}
+                  </p>
+                  <p className="text-sm text-green-600 mt-2 flex items-center">
+                    <TrendingUp className="h-4 w-4 mr-1" />
+                    +{Math.round(((kpis?.rapportsMois || 0) / (kpis?.totalRapports || 1)) * 100)}% du total
+                  </p>
+                </div>
+                <div className="p-3 bg-green-100 rounded-lg">
+                  <Calendar className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+            </div>
+
+            {/* Revenus mensuels */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Revenus mensuels</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">
+                    {revenusMoisActuel.toLocaleString('fr-FR')} F CFA
+                  </p>
+                  <p className="text-sm text-green-600 mt-2 flex items-center">
+                    <TrendingUp className="h-4 w-4 mr-1" />
+                    +15% ce mois
+                  </p>
+                </div>
+                <div className="p-3 bg-purple-100 rounded-lg">
+                  <DollarSign className="h-8 w-8 text-purple-600" />
+                </div>
+              </div>
+            </div>
+
+            {/* Rapports terminés */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Rapports terminés</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">
+                    {kpis?.statuts.termine || 0}
+                  </p>
+                  <p className="text-sm text-gray-600 mt-2">
+                    {kpis?.statuts.brouillon || 0} brouillons
+                  </p>
+                </div>
+                <div className="p-3 bg-green-100 rounded-lg">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+            </div>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead>
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">N° Sinistre</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Montant</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {recentRapports.map((rapport) => (
-                  <tr key={rapport.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{rapport.numeroSinistre}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{rapport.typeRapport}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {new Date(rapport.dateSinistre).toLocaleDateString('fr-FR')}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={'px-2 py-1 text-xs font-medium rounded-full ' + 
-                        (rapport.statut === 'termine' ? 'bg-green-100 text-green-800' : 
-                         rapport.statut === 'en_cours' ? 'bg-blue-100 text-blue-800' : 
-                         'bg-gray-100 text-gray-800')}>
-                        {rapport.statut}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {rapport.montantTotal?.toLocaleString('fr-FR')} F CFA
-                    </td>
-                  </tr>
+
+          {/* Graphique Revenus (simplifié pour l'instant) */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Revenus annuels {revenus?.annee}
+            </h2>
+            
+            {revenus ? (
+              <div className="space-y-2">
+                {revenus.revenus.map(mois => (
+                  <div key={mois.mois} className="flex items-center">
+                    <div className="w-16 text-sm text-gray-600">{mois.nom}</div>
+                    <div className="flex-1 bg-gray-100 rounded-full h-6 relative">
+                      {mois.total > 0 && (
+                        <div
+                          className="bg-blue-600 h-6 rounded-full flex items-center justify-end pr-2"
+                          style={{ 
+                            width: `${(mois.total / (revenus.totalAnnuel || 1)) * 100}%`,
+                            minWidth: '60px'
+                          }}
+                        >
+                          <span className="text-xs text-white font-medium">
+                            {mois.total.toLocaleString('fr-FR')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="w-20 text-sm text-gray-600 text-right">
+                      {mois.nombreRapports} rapports
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+                
+                <div className="pt-4 border-t mt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-gray-900">Total annuel</span>
+                    <span className="text-2xl font-bold text-blue-600">
+                      {revenus.totalAnnuel.toLocaleString('fr-FR')} F CFA
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                Chargement des revenus...
+              </div>
+            )}
           </div>
-        )}
-      </Card>
-    </MainLayout>
+
+          {/* Statuts des rapports */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Répartition par statut */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Répartition par statut
+              </h2>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-gray-400 rounded-full mr-2"></div>
+                    <span className="text-sm text-gray-700">Brouillons</span>
+                  </div>
+                  <span className="font-semibold">{kpis?.statuts.brouillon || 0}</span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-yellow-400 rounded-full mr-2"></div>
+                    <span className="text-sm text-gray-700">En cours</span>
+                  </div>
+                  <span className="font-semibold">{kpis?.statuts.en_cours || 0}</span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                    <span className="text-sm text-gray-700">Terminés</span>
+                  </div>
+                  <span className="font-semibold">{kpis?.statuts.termine || 0}</span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                    <span className="text-sm text-gray-700">Archivés</span>
+                  </div>
+                  <span className="font-semibold">{kpis?.statuts.archive || 0}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Statistiques rapides */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Statistiques rapides
+              </h2>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-sm text-gray-600">Rapports cette semaine</span>
+                  <span className="font-semibold text-gray-900">{kpis?.rapportsSemaine || 0}</span>
+                </div>
+                
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-sm text-gray-600">Honoraires totaux</span>
+                  <span className="font-semibold text-gray-900">
+                    {(kpis?.honorairesTotal || 0).toLocaleString('fr-FR')} F CFA
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-sm text-gray-600">Montant total</span>
+                  <span className="font-semibold text-gray-900">
+                    {(kpis?.montantTotal || 0).toLocaleString('fr-FR')} F CFA
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-sm text-gray-600">Moyenne par rapport</span>
+                  <span className="font-semibold text-gray-900">
+                    {kpis?.totalRapports ? 
+                      Math.round((kpis.honorairesTotal || 0) / kpis.totalRapports).toLocaleString('fr-FR') : 
+                      0
+                    } F CFA
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
