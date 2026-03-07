@@ -99,7 +99,7 @@ export default function CreateRapportPage() {
         numeroOrdreService,
         numeroSinistre,
         typeRapport,
-        dateVisite,
+        dateSinistre: dateVisite,  // ✅ Renommé en dateSinistre
         bureauId,
         statut,
         
