@@ -21,7 +21,16 @@ app.use((req, res, next) => {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
-
+// Ajouter temporairement dans server.js
+app.get('/setup-db', async (req, res) => {
+  try {
+    const { execSync } = require('child_process');
+    const output = execSync('node src/scripts/setup-database.js').toString();
+    res.send('<pre>' + output + '</pre>');
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
+});
 // Import routes
 const authRoutes = require('./routes/auth.routes');
 const bureauxRoutes = require('./routes/bureaux.routes');
