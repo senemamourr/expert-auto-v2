@@ -25,15 +25,12 @@ export default function RapportsFilters({ bureaux, onFilterChange, onReset }: Ra
   const [numeroSinistre, setNumeroSinistre] = useState('');
 
   const handleChange = () => {
-    // Ne passer que les valeurs non vides
-    const filters: any = {};
-    
-    if (statut) filters.statut = statut;
-    if (typeRapport) filters.typeRapport = typeRapport;
-    if (bureauId) filters.bureauId = bureauId;
-    if (numeroSinistre) filters.numeroSinistre = numeroSinistre;
-    
-    onFilterChange(filters);
+    onFilterChange({
+      statut: statut || undefined,
+      typeRapport: typeRapport || undefined,
+      bureauId: bureauId || undefined,
+      numeroSinistre: numeroSinistre || undefined,
+    });
   };
 
   useEffect(() => {
