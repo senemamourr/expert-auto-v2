@@ -8,6 +8,7 @@ import DashboardPage from '@/pages/DashboardPage';
 import BureauxPage from '@/pages/bureaux/BureauxPage';
 import RapportsPage from '@/pages/rapports/RapportsPage';
 import CreateRapportPage from '@/pages/rapports/CreateRapportPage';
+import RapportDetailPage from '@/pages/rapports/RapportDetailPage';
 
 // Composant pour protéger les routes
 function PrivateRoute({ children }: { children: JSX.Element }) {
@@ -61,6 +62,24 @@ function App() {
 
         <Route
           path="/rapports/nouveau"
+          element={
+            <PrivateRoute>
+              <CreateRapportPage />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/rapports/:id"
+          element={
+            <PrivateRoute>
+              <RapportDetailPage />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/rapports/:id/modifier"
           element={
             <PrivateRoute>
               <CreateRapportPage />
