@@ -25,11 +25,13 @@ app.get('/health', (req, res) => {
 // Import routes
 const authRoutes = require('./routes/auth.routes');
 const bureauxRoutes = require('./routes/bureaux.routes');
+const rapportsRoutes = require('./routes/rapports.routes');
 const statsRoutes = require('./routes/stats.routes');
 
 // Register routes
 app.use('/api/auth', authRoutes);
 app.use('/api/bureaux', bureauxRoutes);
+app.use('/api/rapports', rapportsRoutes);
 app.use('/api/stats', statsRoutes);
 
 // 404 handler
