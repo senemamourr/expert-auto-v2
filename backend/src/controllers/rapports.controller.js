@@ -139,8 +139,9 @@ exports.getRapportById = async (req, res) => {
       statut: row.statut,
       
       bureauId: row.bureau_id,
-      bureauCode: row.bureau_code,
-      bureauNom: row.bureau_nom,
+      // Gérer les deux formats : imbriqué (bureau.code) ou plat (bureau_code)
+      bureauCode: row.bureau?.code || row.bureau_code,
+      bureauNom: row.bureau?.nomAgence || row.bureau_nom,
       
       vehiculeGenre: row.vehicule_genre,
       vehiculeMarque: row.vehicule_marque,
@@ -186,6 +187,13 @@ exports.getRapportById = async (req, res) => {
 // Créer un rapport
 exports.createRapport = async (req, res) => {
   try {
+    const data = req.body;
+    
+    // Extraire les données depuis structure imbriquée OU plate
+    const vehicule = data.vehicule || {};
+    const assure = data.assure || {};
+    const honoraire = data.honoraire || {};
+
     const {
       numeroOrdreService,
       numeroSinistre,
@@ -194,29 +202,13 @@ exports.createRapport = async (req, res) => {
       bureauId,
       statut = 'brouillon',
       
-      vehiculeGenre,
-      vehiculeMarque,
-      vehiculeModele,
-      vehiculeImmatriculation,
-      vehiculeChassis,
-      vehiculeDateMec,
-      vehiculeKilometrage,
-      
-      assureNom,
-      assurePrenom,
-      assureTelephone,
-      assureAdresse,
-      
       montantPieces = 0,
       montantMainOeuvre = 0,
       montantPeinture = 0,
       montantFournitures = 0,
       
-      honorairesBase = 0,
-      honorairesDeplacement = 0,
-      
       observations
-    } = req.body;
+    } = data;
 
     // Validation
     if (!numeroOrdreService || !numeroSinistre || !typeRapport || !dateSinistre || !bureauId) {
@@ -230,6 +222,9 @@ exports.createRapport = async (req, res) => {
     // Calculer les totaux
     const montantTotal = parseFloat(montantPieces) + parseFloat(montantMainOeuvre) + 
                         parseFloat(montantPeinture) + parseFloat(montantFournitures);
+    
+    const honorairesBase = honoraire.montantBase || data.honorairesBase || 0;
+    const honorairesDeplacement = honoraire.fraisDeplacement || data.honorairesDeplacement || 0;
     const honorairesTotal = parseFloat(honorairesBase) + parseFloat(honorairesDeplacement);
 
     const query = `
@@ -253,12 +248,35 @@ exports.createRapport = async (req, res) => {
     `;
 
     const values = [
-      numeroOrdreService, numeroSinistre, typeRapport, dateSinistre, bureauId, statut,
-      vehiculeGenre, vehiculeMarque, vehiculeModele, vehiculeImmatriculation,
-      vehiculeChassis, vehiculeDateMec, vehiculeKilometrage,
-      assureNom, assurePrenom, assureTelephone, assureAdresse,
-      montantPieces, montantMainOeuvre, montantPeinture, montantFournitures, montantTotal,
-      honorairesBase, honorairesDeplacement, honorairesTotal,
+      numeroOrdreService,
+      numeroSinistre,
+      typeRapport,
+      dateSinistre,
+      bureauId,
+      statut,
+      // Véhicule - depuis objet imbriqué OU racine
+      vehicule.genre || data.vehiculeGenre || null,
+      vehicule.marque || data.vehiculeMarque || null,
+      vehicule.modele || data.vehiculeModele || null,
+      vehicule.immatriculation || data.vehiculeImmatriculation || null,
+      vehicule.numeroSerie || data.vehiculeChassis || null,
+      vehicule.dateMiseEnCirculation || data.vehiculeDateMec || null,
+      vehicule.kilometrage || data.vehiculeKilometrage || null,
+      // Assuré - depuis objet imbriqué OU racine
+      assure.nom || data.assureNom || null,
+      assure.prenom || data.assurePrenom || null,
+      assure.telephone || data.assureTelephone || null,
+      assure.adresse || data.assureAdresse || null,
+      // Montants
+      montantPieces,
+      montantMainOeuvre,
+      montantPeinture,
+      montantFournitures,
+      montantTotal,
+      // Honoraires
+      honorairesBase,
+      honorairesDeplacement,
+      honorairesTotal,
       observations
     ];
 
@@ -272,7 +290,8 @@ exports.createRapport = async (req, res) => {
     console.error('Erreur createRapport:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la création du rapport'
+      error: 'Erreur lors de la création du rapport',
+      details: error.message
     });
   }
 };
@@ -281,6 +300,13 @@ exports.createRapport = async (req, res) => {
 exports.updateRapport = async (req, res) => {
   try {
     const { id } = req.params;
+    const data = req.body;
+    
+    // Extraire les données depuis structure imbriquée OU plate
+    const vehicule = data.vehicule || {};
+    const assure = data.assure || {};
+    const honoraire = data.honoraire || {};
+
     const {
       numeroOrdreService,
       numeroSinistre,
@@ -289,34 +315,21 @@ exports.updateRapport = async (req, res) => {
       bureauId,
       statut,
       
-      vehiculeGenre,
-      vehiculeMarque,
-      vehiculeModele,
-      vehiculeImmatriculation,
-      vehiculeChassis,
-      vehiculeDateMec,
-      vehiculeKilometrage,
-      
-      assureNom,
-      assurePrenom,
-      assureTelephone,
-      assureAdresse,
-      
       montantPieces,
       montantMainOeuvre,
       montantPeinture,
       montantFournitures,
       
-      honorairesBase,
-      honorairesDeplacement,
-      
       observations
-    } = req.body;
+    } = data;
 
     // Calculer les totaux
     const montantTotal = parseFloat(montantPieces || 0) + parseFloat(montantMainOeuvre || 0) + 
                         parseFloat(montantPeinture || 0) + parseFloat(montantFournitures || 0);
-    const honorairesTotal = parseFloat(honorairesBase || 0) + parseFloat(honorairesDeplacement || 0);
+    
+    const honorairesBase = honoraire.montantBase || data.honorairesBase || 0;
+    const honorairesDeplacement = honoraire.fraisDeplacement || data.honorairesDeplacement || 0;
+    const honorairesTotal = parseFloat(honorairesBase) + parseFloat(honorairesDeplacement);
 
     const query = `
       UPDATE rapports SET
@@ -352,12 +365,35 @@ exports.updateRapport = async (req, res) => {
     `;
 
     const values = [
-      numeroOrdreService, numeroSinistre, typeRapport, dateSinistre, bureauId, statut,
-      vehiculeGenre, vehiculeMarque, vehiculeModele, vehiculeImmatriculation,
-      vehiculeChassis, vehiculeDateMec, vehiculeKilometrage,
-      assureNom, assurePrenom, assureTelephone, assureAdresse,
-      montantPieces, montantMainOeuvre, montantPeinture, montantFournitures, montantTotal,
-      honorairesBase, honorairesDeplacement, honorairesTotal,
+      numeroOrdreService,
+      numeroSinistre,
+      typeRapport,
+      dateSinistre,
+      bureauId,
+      statut,
+      // Véhicule - depuis objet imbriqué OU racine
+      vehicule.genre || data.vehiculeGenre || null,
+      vehicule.marque || data.vehiculeMarque || null,
+      vehicule.modele || data.vehiculeModele || null,
+      vehicule.immatriculation || data.vehiculeImmatriculation || null,
+      vehicule.numeroSerie || data.vehiculeChassis || null,
+      vehicule.dateMiseEnCirculation || data.vehiculeDateMec || null,
+      vehicule.kilometrage || data.vehiculeKilometrage || null,
+      // Assuré - depuis objet imbriqué OU racine
+      assure.nom || data.assureNom || null,
+      assure.prenom || data.assurePrenom || null,
+      assure.telephone || data.assureTelephone || null,
+      assure.adresse || data.assureAdresse || null,
+      // Montants
+      montantPieces,
+      montantMainOeuvre,
+      montantPeinture,
+      montantFournitures,
+      montantTotal,
+      // Honoraires
+      honorairesBase,
+      honorairesDeplacement,
+      honorairesTotal,
       observations,
       id
     ];
@@ -379,7 +415,8 @@ exports.updateRapport = async (req, res) => {
     console.error('Erreur updateRapport:', error);
     res.status(500).json({
       success: false,
-      error: 'Erreur lors de la mise à jour du rapport'
+      error: 'Erreur lors de la mise à jour du rapport',
+      details: error.message
     });
   }
 };
