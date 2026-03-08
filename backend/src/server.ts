@@ -10,6 +10,7 @@ import baremesRoutes from './routes/baremes';
 import statistiquesRoutes from './routes/statistiques';
 import seedRoute from './routes/seedRoute';
 import './models/relations';
+import debugRoutes from './routes/debug.routes';
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ app.use('/api/rapports', rapportsRoutes);
 app.use('/api/baremes', baremesRoutes);
 app.use('/api/stats', statistiquesRoutes);
 app.use('/api/seed', seedRoute);
+app.use('/api/debug', debugRoutes);
 
 connectDatabase().then(async () => {
   await initializeDatabase();
