@@ -246,8 +246,24 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Récupérer user_id depuis le token ou utiliser un défaut
-    const userId = (req as any).user?.id || '00000000-0000-0000-0000-000000000000';
+    // Récupérer user_id depuis le token ou utiliser l'admin
+    let userId = (req as any).user?.id;
+    
+    if (!userId) {
+      // Récupérer l'admin user
+      const adminQuery = `SELECT id FROM users WHERE role = 'admin' LIMIT 1`;
+      const adminResult = await sequelize.query(adminQuery, {
+        type: QueryTypes.SELECT,
+        transaction
+      });
+      
+      if (adminResult.length > 0) {
+        userId = (adminResult[0] as any).id;
+      } else {
+        // Créer un user par défaut si aucun n'existe
+        throw new Error('Aucun utilisateur trouvé. Veuillez vous connecter.');
+      }
+    }
 
     // 1. Créer le rapport D'ABORD (avec UUID généré)
     const rapportQuery = `
