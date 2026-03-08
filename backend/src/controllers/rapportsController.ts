@@ -182,23 +182,22 @@ export const getRapportById = async (req: Request, res: Response): Promise<void>
       vehiculeChassis: row.numero_chassis || '',
       vehiculeDateMec: row.date_mise_circulation || '',
       vehiculeKilometrage: row.kilometrage || 0,
+      vehiculeCouleur: row.couleur || '',
+      vehiculeSourceEnergie: row.source_energie || '',
+      vehiculePuissanceFiscale: row.puissance_fiscale || 0,
+      vehiculeValeurNeuve: row.valeur_neuve || 0,
       
       assureNom: row.assure_nom || '',
       assurePrenom: row.assure_prenom || '',
       assureTelephone: row.assure_telephone || '',
       assureAdresse: row.assure_adresse || '',
       
-      montantPieces: 0, // Calculé depuis chocs
-      montantMainOeuvre: 0, // Calculé depuis chocs
-      montantPeinture: 0, // Calculé depuis chocs
-      montantFournitures: 0, // Calculé depuis fournitures
       montantTotal: parseFloat(row.montant_total) || 0,
       
       honorairesBase: parseFloat(row.honoraires_base) || 0,
       honorairesDeplacement: parseFloat(row.honoraires_deplacement) || 0,
       honorairesTotal: parseFloat(row.honoraires_total) || 0,
       
-      observations: '',
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };
@@ -250,7 +249,6 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
     let userId = (req as any).user?.id;
     
     if (!userId) {
-      // Récupérer l'admin user
       const adminQuery = `SELECT id FROM users WHERE role = 'admin' LIMIT 1`;
       const adminResult = await sequelize.query(adminQuery, {
         type: QueryTypes.SELECT,
@@ -260,12 +258,11 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
       if (adminResult.length > 0) {
         userId = (adminResult[0] as any).id;
       } else {
-        // Créer un user par défaut si aucun n'existe
         throw new Error('Aucun utilisateur trouvé. Veuillez vous connecter.');
       }
     }
 
-    // 1. Créer le rapport D'ABORD (avec UUID généré)
+    // 1. Créer le rapport D'ABORD
     const rapportQuery = `
       INSERT INTO rapports (
         id, type_rapport, numero_ordre_service, bureau_id, numero_sinistre,
@@ -285,9 +282,9 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
         bureauId,
         numeroSinistre,
         dateSinistre,
-        dateSinistre, // date_visite = date_sinistre par défaut
+        dateSinistre,
         statut,
-        0, // montant_total
+        0,
         userId
       ],
       transaction
@@ -295,68 +292,68 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
 
     const rapportId = rapportResult[0][0].id;
 
-    // 2. Créer le véhicule avec rapport_id
-    if (vehiculeData.marque || data.vehiculeMarque) {
-      const vehiculeQuery = `
-        INSERT INTO vehicules (
-          id, rapport_id, marque, type, genre, immatriculation, numero_chassis,
-          kilometrage, date_mise_circulation, couleur, source_energie,
-          puissance_fiscale, valeur_neuve, taux_horaire, taux_vetuste,
-          created_at, updated_at
-        ) VALUES (
-          gen_random_uuid(), $1, $2, $3, $4, $5, $6,
-          $7, $8, $9, $10,
-          $11, $12, $13, $14,
-          NOW(), NOW()
-        )
-      `;
+    // 2. Créer le véhicule avec VALEURS PAR DÉFAUT pour tous les champs requis
+    const vehiculeQuery = `
+      INSERT INTO vehicules (
+        id, rapport_id, marque, type, genre, immatriculation, numero_chassis,
+        kilometrage, date_mise_circulation, couleur, source_energie,
+        puissance_fiscale, valeur_neuve, taux_horaire, taux_vetuste,
+        created_at, updated_at
+      ) VALUES (
+        gen_random_uuid(), $1, $2, $3, $4, $5, $6,
+        $7, $8, $9, $10,
+        $11, $12, $13, $14,
+        NOW(), NOW()
+      )
+    `;
 
-      await sequelize.query(vehiculeQuery, {
-        bind: [
-          rapportId,
-          vehiculeData.marque || data.vehiculeMarque || 'Non spécifié',
-          vehiculeData.type || data.vehiculeType || 'Non spécifié',
-          vehiculeData.genre || data.vehiculeGenre || 'VP',
-          vehiculeData.immatriculation || data.vehiculeImmatriculation || 'XXXXXX',
-          vehiculeData.numeroSerie || data.vehiculeChassis || 'XXXXXX',
-          vehiculeData.kilometrage || data.vehiculeKilometrage || 0,
-          vehiculeData.dateMiseEnCirculation || data.vehiculeDateMec || dateSinistre,
-          vehiculeData.couleur || 'Non spécifiée',
-          vehiculeData.sourceEnergie || 'essence',
-          vehiculeData.puissanceFiscale || 0,
-          vehiculeData.valeurNeuve || 0,
-          0, // taux_horaire
-          0  // taux_vetuste
-        ],
-        transaction
-      });
-    }
+    await sequelize.query(vehiculeQuery, {
+      bind: [
+        rapportId,
+        // Champs avec valeurs utilisateur OU par défaut
+        vehiculeData.marque || data.vehiculeMarque || 'Non spécifié',
+        vehiculeData.type || data.vehiculeType || 'Non spécifié',
+        // ENUM genre - valeurs possibles: VP, VU, MOTO, etc. - défaut VP
+        vehiculeData.genre || data.vehiculeGenre || 'VP',
+        vehiculeData.immatriculation || data.vehiculeImmatriculation || 'XXXXXX',
+        vehiculeData.numeroSerie || data.vehiculeChassis || 'XXXXXX',
+        // Champs numériques requis
+        vehiculeData.kilometrage || data.vehiculeKilometrage || 0,
+        vehiculeData.dateMiseEnCirculation || data.vehiculeDateMec || dateSinistre,
+        vehiculeData.couleur || 'Non spécifiée',
+        // ENUM source_energie - valeurs possibles: essence, diesel, electrique, hybride, gpl
+        vehiculeData.sourceEnergie || 'essence',
+        vehiculeData.puissanceFiscale || 0,
+        vehiculeData.valeurNeuve || 0,
+        0, // taux_horaire
+        0  // taux_vetuste
+      ],
+      transaction
+    });
 
-    // 3. Créer l'assuré avec rapport_id
-    if (assureData.nom || data.assureNom) {
-      const assureQuery = `
-        INSERT INTO assures (
-          id, rapport_id, nom, prenom, telephone, adresse,
-          created_at, updated_at
-        ) VALUES (
-          gen_random_uuid(), $1, $2, $3, $4, $5,
-          NOW(), NOW()
-        )
-      `;
+    // 3. Créer l'assuré avec VALEURS PAR DÉFAUT pour tous les champs requis
+    const assureQuery = `
+      INSERT INTO assures (
+        id, rapport_id, nom, prenom, telephone, adresse,
+        created_at, updated_at
+      ) VALUES (
+        gen_random_uuid(), $1, $2, $3, $4, $5,
+        NOW(), NOW()
+      )
+    `;
 
-      await sequelize.query(assureQuery, {
-        bind: [
-          rapportId,
-          assureData.nom || data.assureNom || 'Non spécifié',
-          assureData.prenom || data.assurePrenom || '',
-          assureData.telephone || data.assureTelephone || '0000000000',
-          assureData.adresse || data.assureAdresse || 'Non spécifiée'
-        ],
-        transaction
-      });
-    }
+    await sequelize.query(assureQuery, {
+      bind: [
+        rapportId,
+        assureData.nom || data.assureNom || 'Non spécifié',
+        assureData.prenom || data.assurePrenom || 'Non spécifié',
+        assureData.telephone || data.assureTelephone || '0000000000',
+        assureData.adresse || data.assureAdresse || 'Non spécifiée'
+      ],
+      transaction
+    });
 
-    // 4. Créer les honoraires avec rapport_id
+    // 4. Créer les honoraires
     const honorairesBase = honoraire.montantBase || data.honorairesBase || 0;
     const honorairesDeplacement = honoraire.fraisDeplacement || data.honorairesDeplacement || 0;
     const honorairesTotal = parseFloat(honorairesBase) + parseFloat(honorairesDeplacement);
@@ -462,58 +459,62 @@ export const updateRapport = async (req: Request, res: Response): Promise<void> 
     }
 
     // Mettre à jour le véhicule
-    if (vehiculeData.marque || data.vehiculeMarque) {
-      const updateVehiculeQuery = `
-        UPDATE vehicules SET
-          marque = COALESCE($1, marque),
-          type = COALESCE($2, type),
-          genre = COALESCE($3, genre),
-          immatriculation = COALESCE($4, immatriculation),
-          numero_chassis = COALESCE($5, numero_chassis),
-          kilometrage = COALESCE($6, kilometrage),
-          date_mise_circulation = COALESCE($7, date_mise_circulation),
-          updated_at = NOW()
-        WHERE rapport_id = $8
-      `;
+    const updateVehiculeQuery = `
+      UPDATE vehicules SET
+        marque = COALESCE($1, marque),
+        type = COALESCE($2, type),
+        genre = COALESCE($3, genre),
+        immatriculation = COALESCE($4, immatriculation),
+        numero_chassis = COALESCE($5, numero_chassis),
+        kilometrage = COALESCE($6, kilometrage),
+        date_mise_circulation = COALESCE($7, date_mise_circulation),
+        couleur = COALESCE($8, couleur),
+        source_energie = COALESCE($9, source_energie),
+        puissance_fiscale = COALESCE($10, puissance_fiscale),
+        valeur_neuve = COALESCE($11, valeur_neuve),
+        updated_at = NOW()
+      WHERE rapport_id = $12
+    `;
 
-      await sequelize.query(updateVehiculeQuery, {
-        bind: [
-          vehiculeData.marque || data.vehiculeMarque,
-          vehiculeData.type || data.vehiculeType,
-          vehiculeData.genre || data.vehiculeGenre,
-          vehiculeData.immatriculation || data.vehiculeImmatriculation,
-          vehiculeData.numeroSerie || data.vehiculeChassis,
-          vehiculeData.kilometrage || data.vehiculeKilometrage,
-          vehiculeData.dateMiseEnCirculation || data.vehiculeDateMec,
-          id
-        ],
-        transaction
-      });
-    }
+    await sequelize.query(updateVehiculeQuery, {
+      bind: [
+        vehiculeData.marque || data.vehiculeMarque,
+        vehiculeData.type || data.vehiculeType,
+        vehiculeData.genre || data.vehiculeGenre,
+        vehiculeData.immatriculation || data.vehiculeImmatriculation,
+        vehiculeData.numeroSerie || data.vehiculeChassis,
+        vehiculeData.kilometrage || data.vehiculeKilometrage,
+        vehiculeData.dateMiseEnCirculation || data.vehiculeDateMec,
+        vehiculeData.couleur,
+        vehiculeData.sourceEnergie,
+        vehiculeData.puissanceFiscale,
+        vehiculeData.valeurNeuve,
+        id
+      ],
+      transaction
+    });
 
     // Mettre à jour l'assuré
-    if (assureData.nom || data.assureNom) {
-      const updateAssureQuery = `
-        UPDATE assures SET
-          nom = COALESCE($1, nom),
-          prenom = COALESCE($2, prenom),
-          telephone = COALESCE($3, telephone),
-          adresse = COALESCE($4, adresse),
-          updated_at = NOW()
-        WHERE rapport_id = $5
-      `;
+    const updateAssureQuery = `
+      UPDATE assures SET
+        nom = COALESCE($1, nom),
+        prenom = COALESCE($2, prenom),
+        telephone = COALESCE($3, telephone),
+        adresse = COALESCE($4, adresse),
+        updated_at = NOW()
+      WHERE rapport_id = $5
+    `;
 
-      await sequelize.query(updateAssureQuery, {
-        bind: [
-          assureData.nom || data.assureNom,
-          assureData.prenom || data.assurePrenom,
-          assureData.telephone || data.assureTelephone,
-          assureData.adresse || data.assureAdresse,
-          id
-        ],
-        transaction
-      });
-    }
+    await sequelize.query(updateAssureQuery, {
+      bind: [
+        assureData.nom || data.assureNom,
+        assureData.prenom || data.assurePrenom,
+        assureData.telephone || data.assureTelephone,
+        assureData.adresse || data.assureAdresse,
+        id
+      ],
+      transaction
+    });
 
     // Mettre à jour les honoraires
     const honorairesBase = honoraire.montantBase || data.honorairesBase;
