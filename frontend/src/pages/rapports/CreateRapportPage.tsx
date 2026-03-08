@@ -78,7 +78,13 @@ export default function CreateRapportPage() {
       const response = await apiClient.get(`/rapports/${rapportId}`);
       const data = response.data.rapport;
 
-      console.log('📊 Données du rapport chargé:', data); // DEBUG
+      console.log('📊 ===== DONNÉES DU RAPPORT CHARGÉ =====');
+      console.log('🔍 Rapport complet:', data);
+      console.log('🚗 data.vehicule:', data.vehicule);
+      console.log('👤 data.assure:', data.assure);
+      console.log('📝 data.observations:', data.observations);
+      console.log('💰 data.montantPieces:', data.montantPieces);
+      console.log('========================================');
 
       // Pré-remplir tous les champs avec gestion stricte des valeurs
       setNumeroOrdreService(data.numeroOrdreService ?? '');
@@ -90,8 +96,14 @@ export default function CreateRapportPage() {
 
       // Véhicule - gérer structure imbriquée OU plate
       const vehicule = data.vehicule || {};
+      console.log('🔧 vehicule extrait:', vehicule);
+      console.log('🔧 vehicule.marque:', vehicule.marque);
+      console.log('🔧 data.vehiculeMarque:', data.vehiculeMarque);
+      
+      const marque = vehicule.marque || data.vehiculeMarque || '';
+      console.log('✅ Marque finale à setter:', marque);
       setVehiculeGenre(vehicule.genre || data.vehiculeGenre || '');
-      setVehiculeMarque(vehicule.marque || data.vehiculeMarque || '');
+      setVehiculeMarque(marque);
       setVehiculeModele(vehicule.modele || data.vehiculeModele || '');
       setVehiculeImmatriculation(vehicule.immatriculation || data.vehiculeImmatriculation || '');
       setVehiculeChassis(vehicule.numeroSerie || data.vehiculeChassis || '');
@@ -100,7 +112,13 @@ export default function CreateRapportPage() {
 
       // Assuré - gérer structure imbriquée OU plate
       const assure = data.assure || {};
-      setAssureNom(assure.nom || data.assureNom || '');
+      console.log('🔧 assure extrait:', assure);
+      console.log('🔧 assure.nom:', assure.nom);
+      console.log('🔧 data.assureNom:', data.assureNom);
+      
+      const nom = assure.nom || data.assureNom || '';
+      console.log('✅ Nom final à setter:', nom);
+      setAssureNom(nom);
       setAssurePrenom(assure.prenom || data.assurePrenom || '');
       setAssureTelephone(assure.telephone || data.assureTelephone || '');
       setAssureAdresse(assure.adresse || data.assureAdresse || '');
@@ -117,9 +135,11 @@ export default function CreateRapportPage() {
       setHonorairesDeplacement(honoraire.fraisDeplacement != null ? honoraire.fraisDeplacement.toString() : (data.honorairesDeplacement != null ? data.honorairesDeplacement.toString() : '0'));
 
       // Observations
-      setObservations(data.observations ?? '');
+      const obs = data.observations ?? '';
+      console.log('✅ Observations finales à setter:', obs);
+      setObservations(obs);
 
-      console.log('✅ Champs pré-remplis avec succès'); // DEBUG
+      console.log('✅ ===== CHAMPS PRÉ-REMPLIS AVEC SUCCÈS =====');
     } catch (error: any) {
       console.error('❌ Erreur chargement rapport:', error);
       setError('Erreur lors du chargement du rapport');
@@ -157,6 +177,7 @@ export default function CreateRapportPage() {
     setError(null);
 
     try {
+      // TRANSFORMATION : Structure plate → Structure imbriquée pour Sequelize
       const payload = {
         numeroOrdreService,
         numeroSinistre,
@@ -165,29 +186,41 @@ export default function CreateRapportPage() {
         bureauId,
         statut,
         
-        vehiculeGenre,
-        vehiculeMarque,
-        vehiculeModele,
-        vehiculeImmatriculation,
-        vehiculeChassis,
-        vehiculeDateMec: vehiculeDateMec || null,
-        vehiculeKilometrage: vehiculeKilometrage ? parseInt(vehiculeKilometrage) : null,
+        // Véhicule - Objet imbriqué
+        vehicule: vehiculeMarque || vehiculeModele || vehiculeImmatriculation ? {
+          genre: vehiculeGenre || null,
+          marque: vehiculeMarque || null,
+          modele: vehiculeModele || null,
+          immatriculation: vehiculeImmatriculation || null,
+          numeroSerie: vehiculeChassis || null,
+          dateMiseEnCirculation: vehiculeDateMec || null,
+          kilometrage: vehiculeKilometrage ? parseInt(vehiculeKilometrage) : null,
+        } : null,
         
-        assureNom,
-        assurePrenom,
-        assureTelephone,
-        assureAdresse,
+        // Assuré - Objet imbriqué
+        assure: assureNom || assurePrenom ? {
+          nom: assureNom || null,
+          prenom: assurePrenom || null,
+          telephone: assureTelephone || null,
+          adresse: assureAdresse || null,
+        } : null,
         
+        // Montants - Rester au niveau racine
         montantPieces: parseFloat(montantPieces || '0'),
         montantMainOeuvre: parseFloat(montantMainOeuvre || '0'),
         montantPeinture: parseFloat(montantPeinture || '0'),
         montantFournitures: parseFloat(montantFournitures || '0'),
         
-        honorairesBase: parseFloat(honorairesBase || '0'),
-        honorairesDeplacement: parseFloat(honorairesDeplacement || '0'),
+        // Honoraires - Objet imbriqué
+        honoraire: {
+          montantBase: parseFloat(honorairesBase || '0'),
+          fraisDeplacement: parseFloat(honorairesDeplacement || '0'),
+        },
         
         observations,
       };
+
+      console.log('📤 Payload envoyé au backend:', payload);
 
       if (isEditMode && id) {
         await apiClient.put(`/rapports/${id}`, payload);
