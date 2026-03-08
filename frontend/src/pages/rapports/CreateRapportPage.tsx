@@ -55,12 +55,24 @@ export default function CreateRapportPage() {
 
   const loadBureaux = async () => {
     try {
+      console.log('🔍 Chargement bureaux...');
+      console.log('🔍 API URL:', import.meta.env.VITE_API_URL);
+      
       const response = await apiClient.get('/bureaux');
-      if (response.data.success && response.data.bureaux) {
+      
+      console.log('📥 Response bureaux:', response);
+      console.log('📥 Response data:', response.data);
+      
+      if (response.data.bureaux && Array.isArray(response.data.bureaux)) {
+        console.log('✅ Bureaux chargés:', response.data.bureaux.length);
         setBureaux(response.data.bureaux);
+      } else {
+        console.warn('⚠️ Pas de bureaux dans la réponse:', response.data);
       }
-    } catch (err) {
-      console.error('Erreur chargement bureaux:', err);
+    } catch (err: any) {
+      console.error('❌ Erreur chargement bureaux:', err);
+      console.error('❌ Erreur response:', err.response?.data);
+      console.error('❌ Erreur status:', err.response?.status);
     }
   };
 
@@ -68,7 +80,7 @@ export default function CreateRapportPage() {
     try {
       setLoading(true);
       const response = await rapportsService.getRapportById(id);
-      if (response.data.success && response.data.rapport) {
+      if (response.data && (response.data.rapport || response.data.success)) {
         const r = response.data.rapport;
         setFormData({
           numeroOrdreService: r.numeroOrdreService || '',
@@ -176,8 +188,10 @@ export default function CreateRapportPage() {
         response = await rapportsService.createRapport(payload);
       }
 
-      if (response.data.success) {
+      if (response.data && (response.data.success !== false)) {
         navigate('/rapports');
+      } else {
+        setError(response.data?.error || 'Erreur lors de la sauvegarde');
       }
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Erreur lors de la sauvegarde');
