@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useRapportsStore } from '../../stores/rapportsStore';
+import { rapportsService } from '../../services/api/rapports.service';
+import apiClient from '../../services/api/api.client';
 
 export default function CreateRapportPage() {
   const navigate = useNavigate();
   const { id: rapportId } = useParams();
   const isEditMode = !!rapportId;
-
-  const { getRapportById, createRapport, updateRapport } = useRapportsStore();
   
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -56,15 +55,9 @@ export default function CreateRapportPage() {
 
   const loadBureaux = async () => {
     try {
-      // Appeler l'API directement
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/bureaux`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const data = await response.json();
-      if (data.success && data.bureaux) {
-        setBureaux(data.bureaux);
+      const response = await apiClient.get('/bureaux');
+      if (response.data.success && response.data.bureaux) {
+        setBureaux(response.data.bureaux);
       }
     } catch (err) {
       console.error('Erreur chargement bureaux:', err);
@@ -74,9 +67,9 @@ export default function CreateRapportPage() {
   const loadRapport = async (id: string) => {
     try {
       setLoading(true);
-      const result = await getRapportById(id);
-      if (result.success && result.rapport) {
-        const r = result.rapport;
+      const response = await rapportsService.getRapportById(id);
+      if (response.data.success && response.data.rapport) {
+        const r = response.data.rapport;
         setFormData({
           numeroOrdreService: r.numeroOrdreService || '',
           numeroSinistre: r.numeroSinistre || '',
@@ -176,14 +169,14 @@ export default function CreateRapportPage() {
 
       console.log('📤 Payload:', payload);
 
-      let result;
+      let response;
       if (isEditMode) {
-        result = await updateRapport(rapportId!, payload);
+        response = await rapportsService.updateRapport(rapportId!, payload);
       } else {
-        result = await createRapport(payload);
+        response = await rapportsService.createRapport(payload);
       }
 
-      if (result.success) {
+      if (response.data.success) {
         navigate('/rapports');
       }
     } catch (err: any) {
