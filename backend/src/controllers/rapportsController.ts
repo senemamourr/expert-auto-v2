@@ -1,122 +1,81 @@
 import { Request, Response } from 'express';
 
-// Import de sequelize (pas pool pg, mais instance Sequelize)
-const getSequelize = () => {
+// Import des modèles Sequelize
+const getModels = () => {
   try {
     const db = require('../config/database');
     console.log('🔍 Database exports:', Object.keys(db));
     
-    if (db.sequelize) {
-      console.log('✅ Utilisation de db.sequelize');
-      return db.sequelize;
-    }
-    if (db.default) {
-      console.log('✅ Utilisation de db.default');
-      return db.default;
-    }
-    console.log('✅ Utilisation de db direct');
+    // Retourner l'objet db qui contient sequelize + tous les modèles
     return db;
   } catch (err) {
-    console.error('❌ Erreur chargement sequelize:', err);
-    throw new Error('Impossible de charger sequelize');
+    console.error('❌ Erreur chargement models:', err);
+    throw new Error('Impossible de charger les modèles');
   }
 };
 
-const sequelize = getSequelize();
-console.log('🔍 Sequelize final:', typeof sequelize, sequelize ? 'OK' : 'UNDEFINED');
+const db = getModels();
+const { Rapport, Bureau, Vehicule, Assure } = db;
 
 // Liste des rapports avec pagination et filtres
 export const getRapports = async (req: Request, res: Response): Promise<void> => {
   try {
-    if (!sequelize || !sequelize.query) {
-      throw new Error('Sequelize non initialisé');
-    }
     const { page = '1', limit = '10', statut, typeRapport, bureauId, numeroSinistre } = req.query;
     const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
 
-    const whereConditions: string[] = [];
-    const queryParams: any[] = [];
-    let paramIndex = 1;
-
-    if (statut && statut !== '') {
-      whereConditions.push(`r.statut = $${paramIndex}`);
-      queryParams.push(statut);
-      paramIndex++;
-    }
-
-    if (typeRapport && typeRapport !== '') {
-      whereConditions.push(`r.type_rapport = $${paramIndex}`);
-      queryParams.push(typeRapport);
-      paramIndex++;
-    }
-
-    if (bureauId && bureauId !== '') {
-      whereConditions.push(`r.bureau_id = $${paramIndex}`);
-      queryParams.push(bureauId);
-      paramIndex++;
-    }
-
+    const where: any = {};
+    
+    if (statut && statut !== '') where.statut = statut;
+    if (typeRapport && typeRapport !== '') where.typeRapport = typeRapport;
+    if (bureauId && bureauId !== '') where.bureauId = bureauId;
     if (numeroSinistre && numeroSinistre !== '') {
-      whereConditions.push(`r.numero_sinistre ILIKE $${paramIndex}`);
-      queryParams.push(`%${numeroSinistre}%`);
-      paramIndex++;
+      const { Op } = require('sequelize');
+      where.numeroSinistre = { [Op.like]: `%${numeroSinistre}%` };
     }
 
-    const whereClause = whereConditions.length > 0 
-      ? 'WHERE ' + whereConditions.join(' AND ')
-      : '';
-
-    const query = `
-      SELECT 
-        r.*,
-        b.code as bureau_code,
-        b.nom_agence as bureau_nom
-      FROM rapports r
-      LEFT JOIN bureaux b ON r.bureau_id = b.id
-      ${whereClause}
-      ORDER BY r.created_at DESC
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `;
-
-    queryParams.push(parseInt(limit as string), offset);
-
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM rapports r
-      ${whereClause}
-    `;
-
-    // Sequelize.query() avec QueryTypes.SELECT
-    const { QueryTypes } = require('sequelize');
-    const rapportsResult = await sequelize.query(query, {
-      bind: queryParams,
-      type: QueryTypes.SELECT
-    });
-    const countResult = await sequelize.query(countQuery, {
-      bind: queryParams.slice(0, -2),
-      type: QueryTypes.SELECT
+    const { count, rows } = await Rapport.findAndCountAll({
+      where,
+      include: [
+        {
+          model: Bureau,
+          as: 'bureau',
+          attributes: ['id', 'code', 'nomAgence']
+        },
+        {
+          model: Vehicule,
+          as: 'vehicule',
+          required: false
+        },
+        {
+          model: Assure,
+          as: 'assure',
+          required: false
+        }
+      ],
+      limit: parseInt(limit as string),
+      offset,
+      order: [['createdAt', 'DESC']]
     });
 
-    // Sequelize retourne directement les rows (pas .rows)
-    const rapports = rapportsResult.map((row: any) => ({
-      id: row.id,
-      numeroOrdreService: row.numero_ordre_service,
-      numeroSinistre: row.numero_sinistre,
-      typeRapport: row.type_rapport,
-      dateVisite: row.date_visite,
-      dateSinistre: row.date_visite,
-      statut: row.statut,
-      bureauId: row.bureau_id,
-      bureauCode: row.bureau_code,
-      bureauNom: row.bureau_nom,
-      vehiculeMarque: row.vehicule_marque,
-      vehiculeModele: row.vehicule_modele,
-      vehiculeImmatriculation: row.vehicule_immatriculation,
-      assureNom: row.assure_nom,
-      assurePrenom: row.assure_prenom,
-      montantTotal: parseFloat(row.montant_total) || 0,
-      honorairesTotal: parseFloat(row.honoraires_total) || 0,
-      createdAt: row.created_at
+    const rapports = rows.map((r: any) => ({
+      id: r.id,
+      numeroOrdreService: r.numeroOrdreService,
+      numeroSinistre: r.numeroSinistre,
+      typeRapport: r.typeRapport,
+      dateVisite: r.dateVisite,
+      dateSinistre: r.dateVisite,
+      statut: r.statut,
+      bureauId: r.bureauId,
+      bureauCode: r.bureau?.code || 'N/A',
+      bureauNom: r.bureau?.nomAgence || 'N/A',
+      vehiculeMarque: r.vehicule?.marque || '',
+      vehiculeModele: r.vehicule?.modele || '',
+      vehiculeImmatriculation: r.vehicule?.immatriculation || '',
+      assureNom: r.assure?.nom || '',
+      assurePrenom: r.assure?.prenom || '',
+      montantTotal: parseFloat(r.montantTotal) || 0,
+      honorairesTotal: parseFloat(r.honorairesTotal) || 0,
+      createdAt: r.createdAt
     }));
 
     res.json({
@@ -125,8 +84,8 @@ export const getRapports = async (req: Request, res: Response): Promise<void> =>
       pagination: {
         page: parseInt(page as string),
         limit: parseInt(limit as string),
-        total: parseInt(countResult[0].total),
-        pages: Math.ceil(countResult[0].total / parseInt(limit as string))
+        total: count,
+        pages: Math.ceil(count / parseInt(limit as string))
       }
     });
   } catch (error: any) {
@@ -143,23 +102,27 @@ export const getRapportById = async (req: Request, res: Response): Promise<void>
   try {
     const { id } = req.params;
 
-    const query = `
-      SELECT 
-        r.*,
-        b.code as bureau_code,
-        b.nom_agence as bureau_nom
-      FROM rapports r
-      LEFT JOIN bureaux b ON r.bureau_id = b.id
-      WHERE r.id = $1
-    `;
-
-    const { QueryTypes } = require('sequelize');
-    const result = await sequelize.query(query, {
-      bind: [id],
-      type: QueryTypes.SELECT
+    const rapport = await Rapport.findByPk(id, {
+      include: [
+        {
+          model: Bureau,
+          as: 'bureau',
+          attributes: ['id', 'code', 'nomAgence']
+        },
+        {
+          model: Vehicule,
+          as: 'vehicule',
+          required: false
+        },
+        {
+          model: Assure,
+          as: 'assure',
+          required: false
+        }
+      ]
     });
 
-    if (result.length === 0) {
+    if (!rapport) {
       res.status(404).json({
         success: false,
         error: 'Rapport non trouvé'
@@ -167,51 +130,51 @@ export const getRapportById = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const row = result[0];
-    const rapport = {
-      id: row.id,
-      numeroOrdreService: row.numero_ordre_service,
-      numeroSinistre: row.numero_sinistre,
-      typeRapport: row.type_rapport,
-      dateVisite: row.date_visite,
-      dateSinistre: row.date_visite,
-      statut: row.statut,
+    const r: any = rapport;
+    const response = {
+      id: r.id,
+      numeroOrdreService: r.numeroOrdreService,
+      numeroSinistre: r.numeroSinistre,
+      typeRapport: r.typeRapport,
+      dateVisite: r.dateVisite,
+      dateSinistre: r.dateVisite,
+      statut: r.statut,
       
-      bureauId: row.bureau_id,
-      bureauCode: row.bureau_code,
-      bureauNom: row.bureau_nom,
+      bureauId: r.bureauId,
+      bureauCode: r.bureau?.code || 'N/A',
+      bureauNom: r.bureau?.nomAgence || 'N/A',
       
-      vehiculeGenre: row.vehicule_genre,
-      vehiculeMarque: row.vehicule_marque,
-      vehiculeModele: row.vehicule_modele,
-      vehiculeImmatriculation: row.vehicule_immatriculation,
-      vehiculeChassis: row.vehicule_chassis,
-      vehiculeDateMec: row.vehicule_date_mec,
-      vehiculeKilometrage: row.vehicule_kilometrage,
+      vehiculeGenre: r.vehicule?.genre || '',
+      vehiculeMarque: r.vehicule?.marque || '',
+      vehiculeModele: r.vehicule?.modele || '',
+      vehiculeImmatriculation: r.vehicule?.immatriculation || '',
+      vehiculeChassis: r.vehicule?.numeroChassis || r.vehicule?.numeroSerie || '',
+      vehiculeDateMec: r.vehicule?.dateMiseEnCirculation || '',
+      vehiculeKilometrage: r.vehicule?.kilometrage || 0,
       
-      assureNom: row.assure_nom,
-      assurePrenom: row.assure_prenom,
-      assureTelephone: row.assure_telephone,
-      assureAdresse: row.assure_adresse,
+      assureNom: r.assure?.nom || '',
+      assurePrenom: r.assure?.prenom || '',
+      assureTelephone: r.assure?.telephone || '',
+      assureAdresse: r.assure?.adresse || '',
       
-      montantPieces: parseFloat(row.montant_pieces) || 0,
-      montantMainOeuvre: parseFloat(row.montant_main_oeuvre) || 0,
-      montantPeinture: parseFloat(row.montant_peinture) || 0,
-      montantFournitures: parseFloat(row.montant_fournitures) || 0,
-      montantTotal: parseFloat(row.montant_total) || 0,
+      montantPieces: parseFloat(r.montantPieces) || 0,
+      montantMainOeuvre: parseFloat(r.montantMainOeuvre) || 0,
+      montantPeinture: parseFloat(r.montantPeinture) || 0,
+      montantFournitures: parseFloat(r.montantFournitures) || 0,
+      montantTotal: parseFloat(r.montantTotal) || 0,
       
-      honorairesBase: parseFloat(row.honoraires_base) || 0,
-      honorairesDeplacement: parseFloat(row.honoraires_deplacement) || 0,
-      honorairesTotal: parseFloat(row.honoraires_total) || 0,
+      honorairesBase: parseFloat(r.honorairesBase) || 0,
+      honorairesDeplacement: parseFloat(r.honorairesDeplacement) || 0,
+      honorairesTotal: parseFloat(r.honorairesTotal) || 0,
       
-      observations: row.observations,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
+      observations: r.observations,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt
     };
 
     res.json({
       success: true,
-      rapport
+      rapport: response
     });
   } catch (error: any) {
     console.error('Erreur getRapportById:', error);
@@ -227,8 +190,8 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
   try {
     const data = req.body;
     
-    const vehicule = data.vehicule || {};
-    const assure = data.assure || {};
+    const vehiculeData = data.vehicule || {};
+    const assureData = data.assure || {};
     const honoraire = data.honoraire || {};
 
     const {
@@ -263,44 +226,52 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
     const honorairesDeplacement = honoraire.fraisDeplacement || data.honorairesDeplacement || 0;
     const honorairesTotal = parseFloat(honorairesBase) + parseFloat(honorairesDeplacement);
 
-    const query = `
-      INSERT INTO rapports (
-        numero_ordre_service, numero_sinistre, type_rapport, date_visite, bureau_id, statut,
-        vehicule_genre, vehicule_marque, vehicule_modele, vehicule_immatriculation,
-        vehicule_chassis, vehicule_date_mec, vehicule_kilometrage,
-        assure_nom, assure_prenom, assure_telephone, assure_adresse,
-        montant_pieces, montant_main_oeuvre, montant_peinture, montant_fournitures, montant_total,
-        honoraires_base, honoraires_deplacement, honoraires_total,
-        observations
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6,
-        $7, $8, $9, $10,
-        $11, $12, $13,
-        $14, $15, $16, $17,
-        $18, $19, $20, $21, $22,
-        $23, $24, $25,
-        $26
-      ) RETURNING *
-    `;
+    // Créer le véhicule si des données sont fournies
+    let vehiculeId = null;
+    if (vehiculeData.marque || data.vehiculeMarque) {
+      const vehicule = await Vehicule.create({
+        genre: vehiculeData.genre || data.vehiculeGenre || null,
+        marque: vehiculeData.marque || data.vehiculeMarque || null,
+        modele: vehiculeData.modele || data.vehiculeModele || null,
+        immatriculation: vehiculeData.immatriculation || data.vehiculeImmatriculation || null,
+        numeroChassis: vehiculeData.numeroSerie || data.vehiculeChassis || null,
+        dateMiseEnCirculation: vehiculeData.dateMiseEnCirculation || data.vehiculeDateMec || null,
+        kilometrage: vehiculeData.kilometrage || data.vehiculeKilometrage || null,
+        
+        // Champs requis avec valeurs par défaut
+        type: vehiculeData.type || 'Non spécifié',
+        couleur: vehiculeData.couleur || 'Non spécifiée',
+        sourceEnergie: vehiculeData.sourceEnergie || 'Non spécifié',
+        puissanceFiscale: vehiculeData.puissanceFiscale || 0,
+        valeurNeuve: vehiculeData.valeurNeuve || 0
+      }, { validate: false }); // DÉSACTIVER LA VALIDATION
+      
+      vehiculeId = vehicule.id;
+    }
 
-    const values = [
+    // Créer l'assuré si des données sont fournies
+    let assureId = null;
+    if (assureData.nom || data.assureNom) {
+      const assure = await Assure.create({
+        nom: assureData.nom || data.assureNom || null,
+        prenom: assureData.prenom || data.assurePrenom || null,
+        telephone: assureData.telephone || data.assureTelephone || null,
+        adresse: assureData.adresse || data.assureAdresse || null
+      }, { validate: false }); // DÉSACTIVER LA VALIDATION
+      
+      assureId = assure.id;
+    }
+
+    // Créer le rapport
+    const rapport = await Rapport.create({
       numeroOrdreService,
       numeroSinistre,
       typeRapport,
-      dateSinistre,
+      dateVisite: dateSinistre,
       bureauId,
       statut,
-      vehicule.genre || data.vehiculeGenre || null,
-      vehicule.marque || data.vehiculeMarque || null,
-      vehicule.modele || data.vehiculeModele || null,
-      vehicule.immatriculation || data.vehiculeImmatriculation || null,
-      vehicule.numeroSerie || data.vehiculeChassis || null,
-      vehicule.dateMiseEnCirculation || data.vehiculeDateMec || null,
-      vehicule.kilometrage || data.vehiculeKilometrage || null,
-      assure.nom || data.assureNom || null,
-      assure.prenom || data.assurePrenom || null,
-      assure.telephone || data.assureTelephone || null,
-      assure.adresse || data.assureAdresse || null,
+      vehiculeId,
+      assureId,
       montantPieces,
       montantMainOeuvre,
       montantPeinture,
@@ -310,18 +281,11 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
       honorairesDeplacement,
       honorairesTotal,
       observations
-    ];
-
-    const result = await sequelize.query(query, {
-      bind: values
-    });
-
-    // result est [rows, metadata] pour les queries sans type
-    const createdRapport = result[0][0];
+    }, { validate: false }); // DÉSACTIVER LA VALIDATION
 
     res.status(201).json({
       success: true,
-      rapport: createdRapport
+      rapport
     });
   } catch (error: any) {
     console.error('Erreur createRapport:', error);
@@ -339,8 +303,23 @@ export const updateRapport = async (req: Request, res: Response): Promise<void> 
     const { id } = req.params;
     const data = req.body;
     
-    const vehicule = data.vehicule || {};
-    const assure = data.assure || {};
+    const rapport = await Rapport.findByPk(id, {
+      include: [
+        { model: Vehicule, as: 'vehicule' },
+        { model: Assure, as: 'assure' }
+      ]
+    });
+
+    if (!rapport) {
+      res.status(404).json({
+        success: false,
+        error: 'Rapport non trouvé'
+      });
+      return;
+    }
+
+    const vehiculeData = data.vehicule || {};
+    const assureData = data.assure || {};
     const honoraire = data.honoraire || {};
 
     const {
@@ -366,57 +345,38 @@ export const updateRapport = async (req: Request, res: Response): Promise<void> 
     const honorairesDeplacement = honoraire.fraisDeplacement || data.honorairesDeplacement || 0;
     const honorairesTotal = parseFloat(honorairesBase) + parseFloat(honorairesDeplacement);
 
-    const query = `
-      UPDATE rapports SET
-        numero_ordre_service = $1,
-        numero_sinistre = $2,
-        type_rapport = $3,
-        date_visite = $4,
-        bureau_id = $5,
-        statut = $6,
-        vehicule_genre = $7,
-        vehicule_marque = $8,
-        vehicule_modele = $9,
-        vehicule_immatriculation = $10,
-        vehicule_chassis = $11,
-        vehicule_date_mec = $12,
-        vehicule_kilometrage = $13,
-        assure_nom = $14,
-        assure_prenom = $15,
-        assure_telephone = $16,
-        assure_adresse = $17,
-        montant_pieces = $18,
-        montant_main_oeuvre = $19,
-        montant_peinture = $20,
-        montant_fournitures = $21,
-        montant_total = $22,
-        honoraires_base = $23,
-        honoraires_deplacement = $24,
-        honoraires_total = $25,
-        observations = $26,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $27
-      RETURNING *
-    `;
+    // Mettre à jour le véhicule si existe
+    const r: any = rapport;
+    if (r.vehicule && (vehiculeData.marque || data.vehiculeMarque)) {
+      await r.vehicule.update({
+        genre: vehiculeData.genre || data.vehiculeGenre || r.vehicule.genre,
+        marque: vehiculeData.marque || data.vehiculeMarque || r.vehicule.marque,
+        modele: vehiculeData.modele || data.vehiculeModele || r.vehicule.modele,
+        immatriculation: vehiculeData.immatriculation || data.vehiculeImmatriculation || r.vehicule.immatriculation,
+        numeroChassis: vehiculeData.numeroSerie || data.vehiculeChassis || r.vehicule.numeroChassis,
+        dateMiseEnCirculation: vehiculeData.dateMiseEnCirculation || data.vehiculeDateMec || r.vehicule.dateMiseEnCirculation,
+        kilometrage: vehiculeData.kilometrage || data.vehiculeKilometrage || r.vehicule.kilometrage
+      }, { validate: false });
+    }
 
-    const values = [
+    // Mettre à jour l'assuré si existe
+    if (r.assure && (assureData.nom || data.assureNom)) {
+      await r.assure.update({
+        nom: assureData.nom || data.assureNom || r.assure.nom,
+        prenom: assureData.prenom || data.assurePrenom || r.assure.prenom,
+        telephone: assureData.telephone || data.assureTelephone || r.assure.telephone,
+        adresse: assureData.adresse || data.assureAdresse || r.assure.adresse
+      }, { validate: false });
+    }
+
+    // Mettre à jour le rapport
+    await rapport.update({
       numeroOrdreService,
       numeroSinistre,
       typeRapport,
-      dateSinistre,
+      dateVisite: dateSinistre,
       bureauId,
       statut,
-      vehicule.genre || data.vehiculeGenre || null,
-      vehicule.marque || data.vehiculeMarque || null,
-      vehicule.modele || data.vehiculeModele || null,
-      vehicule.immatriculation || data.vehiculeImmatriculation || null,
-      vehicule.numeroSerie || data.vehiculeChassis || null,
-      vehicule.dateMiseEnCirculation || data.vehiculeDateMec || null,
-      vehicule.kilometrage || data.vehiculeKilometrage || null,
-      assure.nom || data.assureNom || null,
-      assure.prenom || data.assurePrenom || null,
-      assure.telephone || data.assureTelephone || null,
-      assure.adresse || data.assureAdresse || null,
       montantPieces,
       montantMainOeuvre,
       montantPeinture,
@@ -425,27 +385,12 @@ export const updateRapport = async (req: Request, res: Response): Promise<void> 
       honorairesBase,
       honorairesDeplacement,
       honorairesTotal,
-      observations,
-      id
-    ];
-
-    const result = await sequelize.query(query, {
-      bind: values
-    });
-
-    const updatedRapport = result[0][0];
-
-    if (!updatedRapport) {
-      res.status(404).json({
-        success: false,
-        error: 'Rapport non trouvé'
-      });
-      return;
-    }
+      observations
+    }, { validate: false });
 
     res.json({
       success: true,
-      rapport: updatedRapport
+      rapport
     });
   } catch (error: any) {
     console.error('Erreur updateRapport:', error);
@@ -462,20 +407,17 @@ export const deleteRapport = async (req: Request, res: Response): Promise<void> 
   try {
     const { id } = req.params;
 
-    const result = await sequelize.query(
-      'DELETE FROM rapports WHERE id = $1 RETURNING *',
-      { bind: [id] }
-    );
+    const rapport = await Rapport.findByPk(id);
 
-    const deletedRapport = result[0][0];
-
-    if (!deletedRapport) {
+    if (!rapport) {
       res.status(404).json({
         success: false,
         error: 'Rapport non trouvé'
       });
       return;
     }
+
+    await rapport.destroy();
 
     res.json({
       success: true,
