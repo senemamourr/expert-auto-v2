@@ -14,8 +14,8 @@ interface Rapport {
   statut: 'brouillon' | 'en_cours' | 'termine' | 'archive';
   
   bureauId: string;
-  bureauCode?: string;
-  bureauNom?: string;
+  bureauCode: string;
+  bureauNom: string;
   
   vehiculeGenre?: string;
   vehiculeMarque?: string;
@@ -64,7 +64,16 @@ export default function RapportDetailPage() {
     
     try {
       const response = await apiClient.get(`/rapports/${id}`);
-      setRapport(response.data.rapport);
+      const data = response.data.rapport;
+      
+      // Extraire les infos du bureau (structure imbriquée)
+      const rapport = {
+        ...data,
+        bureauCode: data.bureau?.code || 'N/A',
+        bureauNom: data.bureau?.nomAgence || 'N/A',
+      };
+      
+      setRapport(rapport);
     } catch (error: any) {
       console.error('Erreur chargement rapport:', error);
       setError(error.response?.data?.error || 'Erreur lors du chargement du rapport');
