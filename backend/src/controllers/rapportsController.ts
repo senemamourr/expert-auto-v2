@@ -6,6 +6,11 @@ const getModels = () => {
     const db = require('../config/database');
     console.log('🔍 Database exports:', Object.keys(db));
     
+    // Essayer d'accéder aux modèles via sequelize.models
+    if (db.sequelize && db.sequelize.models) {
+      console.log('🔍 Sequelize models:', Object.keys(db.sequelize.models));
+    }
+    
     // Retourner l'objet db qui contient sequelize + tous les modèles
     return db;
   } catch (err) {
@@ -15,7 +20,17 @@ const getModels = () => {
 };
 
 const db = getModels();
-const { Rapport, Bureau, Vehicule, Assure } = db;
+
+// Essayer plusieurs façons d'accéder aux modèles
+const Rapport = db.Rapport || db.sequelize?.models?.Rapport || db.sequelize?.models?.rapport;
+const Bureau = db.Bureau || db.sequelize?.models?.Bureau || db.sequelize?.models?.bureau;
+const Vehicule = db.Vehicule || db.sequelize?.models?.Vehicule || db.sequelize?.models?.vehicule;
+const Assure = db.Assure || db.sequelize?.models?.Assure || db.sequelize?.models?.assure;
+
+console.log('🔍 Rapport:', typeof Rapport);
+console.log('🔍 Bureau:', typeof Bureau);
+console.log('🔍 Vehicule:', typeof Vehicule);
+console.log('🔍 Assure:', typeof Assure);
 
 // Liste des rapports avec pagination et filtres
 export const getRapports = async (req: Request, res: Response): Promise<void> => {
