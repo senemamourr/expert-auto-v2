@@ -293,6 +293,17 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
     const rapportId = rapportResult[0][0].id;
 
     // 2. Créer le véhicule avec VALEURS PAR DÉFAUT pour tous les champs requis
+    
+    // Valider et nettoyer les valeurs ENUM
+    const genresValides = ['VP', 'VU', 'MOTO', 'PL', 'QUAD'];
+    const energiesValides = ['essence', 'diesel', 'electrique', 'hybride', 'gpl'];
+    
+    const genreVehicule = vehiculeData.genre || data.vehiculeGenre;
+    const genreFinal = genreVehicule && genresValides.includes(genreVehicule) ? genreVehicule : 'VP';
+    
+    const energieVehicule = vehiculeData.sourceEnergie || data.vehiculeSourceEnergie;
+    const energieFinal = energieVehicule && energiesValides.includes(energieVehicule) ? energieVehicule : 'essence';
+    
     const vehiculeQuery = `
       INSERT INTO vehicules (
         id, rapport_id, marque, type, genre, immatriculation, numero_chassis,
@@ -310,19 +321,15 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
     await sequelize.query(vehiculeQuery, {
       bind: [
         rapportId,
-        // Champs avec valeurs utilisateur OU par défaut
         vehiculeData.marque || data.vehiculeMarque || 'Non spécifié',
         vehiculeData.type || data.vehiculeType || 'Non spécifié',
-        // ENUM genre - valeurs possibles: VP, VU, MOTO, etc. - défaut VP
-        vehiculeData.genre || data.vehiculeGenre || 'VP',
+        genreFinal, // ENUM validé
         vehiculeData.immatriculation || data.vehiculeImmatriculation || 'XXXXXX',
         vehiculeData.numeroSerie || data.vehiculeChassis || 'XXXXXX',
-        // Champs numériques requis
         vehiculeData.kilometrage || data.vehiculeKilometrage || 0,
         vehiculeData.dateMiseEnCirculation || data.vehiculeDateMec || dateSinistre,
         vehiculeData.couleur || 'Non spécifiée',
-        // ENUM source_energie - valeurs possibles: essence, diesel, electrique, hybride, gpl
-        vehiculeData.sourceEnergie || 'essence',
+        energieFinal, // ENUM validé
         vehiculeData.puissanceFiscale || 0,
         vehiculeData.valeurNeuve || 0,
         0, // taux_horaire
@@ -459,6 +466,15 @@ export const updateRapport = async (req: Request, res: Response): Promise<void> 
     }
 
     // Mettre à jour le véhicule
+    const genresValides = ['VP', 'VU', 'MOTO', 'PL', 'QUAD'];
+    const energiesValides = ['essence', 'diesel', 'electrique', 'hybride', 'gpl'];
+    
+    const genreVehicule = vehiculeData.genre || data.vehiculeGenre;
+    const genreUpdate = genreVehicule && genresValides.includes(genreVehicule) ? genreVehicule : null;
+    
+    const energieVehicule = vehiculeData.sourceEnergie || data.vehiculeSourceEnergie;
+    const energieUpdate = energieVehicule && energiesValides.includes(energieVehicule) ? energieVehicule : null;
+    
     const updateVehiculeQuery = `
       UPDATE vehicules SET
         marque = COALESCE($1, marque),
@@ -480,13 +496,13 @@ export const updateRapport = async (req: Request, res: Response): Promise<void> 
       bind: [
         vehiculeData.marque || data.vehiculeMarque,
         vehiculeData.type || data.vehiculeType,
-        vehiculeData.genre || data.vehiculeGenre,
+        genreUpdate, // ENUM validé ou null
         vehiculeData.immatriculation || data.vehiculeImmatriculation,
         vehiculeData.numeroSerie || data.vehiculeChassis,
         vehiculeData.kilometrage || data.vehiculeKilometrage,
         vehiculeData.dateMiseEnCirculation || data.vehiculeDateMec,
         vehiculeData.couleur,
-        vehiculeData.sourceEnergie,
+        energieUpdate, // ENUM validé ou null
         vehiculeData.puissanceFiscale,
         vehiculeData.valeurNeuve,
         id
