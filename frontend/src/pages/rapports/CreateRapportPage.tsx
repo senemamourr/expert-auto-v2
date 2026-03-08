@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { rapportsStore } from '../../stores/rapportsStore';
-import { bureauxStore } from '../../stores/bureauxStore';
+import { useRapportsStore } from '../../stores/rapportsStore';
 
 export default function CreateRapportPage() {
   const navigate = useNavigate();
   const { id: rapportId } = useParams();
   const isEditMode = !!rapportId;
 
+  const { getRapportById, createRapport, updateRapport } = useRapportsStore();
+  
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [bureaux, setBureaux] = useState<any[]>([]);
@@ -55,9 +56,15 @@ export default function CreateRapportPage() {
 
   const loadBureaux = async () => {
     try {
-      const result = await bureauxStore.getBureaux();
-      if (result.success && result.bureaux) {
-        setBureaux(result.bureaux);
+      // Appeler l'API directement
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/bureaux`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      const data = await response.json();
+      if (data.success && data.bureaux) {
+        setBureaux(data.bureaux);
       }
     } catch (err) {
       console.error('Erreur chargement bureaux:', err);
@@ -67,7 +74,7 @@ export default function CreateRapportPage() {
   const loadRapport = async (id: string) => {
     try {
       setLoading(true);
-      const result = await rapportsStore.getRapportById(id);
+      const result = await getRapportById(id);
       if (result.success && result.rapport) {
         const r = result.rapport;
         setFormData({
@@ -171,9 +178,9 @@ export default function CreateRapportPage() {
 
       let result;
       if (isEditMode) {
-        result = await rapportsStore.updateRapport(rapportId!, payload);
+        result = await updateRapport(rapportId!, payload);
       } else {
-        result = await rapportsStore.createRapport(payload);
+        result = await createRapport(payload);
       }
 
       if (result.success) {
