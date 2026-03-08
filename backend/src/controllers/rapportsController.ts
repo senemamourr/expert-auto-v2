@@ -1,16 +1,14 @@
 import { Request, Response } from 'express';
 
-// Import du pool avec debug
-const getPool = () => {
+// Import de sequelize (pas pool pg, mais instance Sequelize)
+const getSequelize = () => {
   try {
     const db = require('../config/database');
-    console.log('🔍 Database module:', Object.keys(db));
-    console.log('🔍 db.pool:', typeof db.pool);
-    console.log('🔍 db.default:', typeof db.default);
+    console.log('🔍 Database exports:', Object.keys(db));
     
-    if (db.pool) {
-      console.log('✅ Utilisation de db.pool');
-      return db.pool;
+    if (db.sequelize) {
+      console.log('✅ Utilisation de db.sequelize');
+      return db.sequelize;
     }
     if (db.default) {
       console.log('✅ Utilisation de db.default');
@@ -19,19 +17,19 @@ const getPool = () => {
     console.log('✅ Utilisation de db direct');
     return db;
   } catch (err) {
-    console.error('❌ Erreur chargement pool:', err);
-    throw new Error('Impossible de charger le pool de connexion');
+    console.error('❌ Erreur chargement sequelize:', err);
+    throw new Error('Impossible de charger sequelize');
   }
 };
 
-const pool = getPool();
-console.log('🔍 Pool final:', typeof pool, pool ? 'OK' : 'UNDEFINED');
+const sequelize = getSequelize();
+console.log('🔍 Sequelize final:', typeof sequelize, sequelize ? 'OK' : 'UNDEFINED');
 
 // Liste des rapports avec pagination et filtres
 export const getRapports = async (req: Request, res: Response): Promise<void> => {
   try {
-    if (!pool || !pool.query) {
-      throw new Error('Pool de connexion non initialisé');
+    if (!sequelize || !sequelize.query) {
+      throw new Error('Sequelize non initialisé');
     }
     const { page = '1', limit = '10', statut, typeRapport, bureauId, numeroSinistre } = req.query;
     const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
@@ -88,10 +86,19 @@ export const getRapports = async (req: Request, res: Response): Promise<void> =>
       ${whereClause}
     `;
 
-    const rapportsResult = await pool.query(query, queryParams);
-    const countResult = await pool.query(countQuery, queryParams.slice(0, -2));
+    // Sequelize.query() avec QueryTypes.SELECT
+    const { QueryTypes } = require('sequelize');
+    const rapportsResult = await sequelize.query(query, {
+      bind: queryParams,
+      type: QueryTypes.SELECT
+    });
+    const countResult = await sequelize.query(countQuery, {
+      bind: queryParams.slice(0, -2),
+      type: QueryTypes.SELECT
+    });
 
-    const rapports = rapportsResult.rows.map((row: any) => ({
+    // Sequelize retourne directement les rows (pas .rows)
+    const rapports = rapportsResult.map((row: any) => ({
       id: row.id,
       numeroOrdreService: row.numero_ordre_service,
       numeroSinistre: row.numero_sinistre,
@@ -118,8 +125,8 @@ export const getRapports = async (req: Request, res: Response): Promise<void> =>
       pagination: {
         page: parseInt(page as string),
         limit: parseInt(limit as string),
-        total: parseInt(countResult.rows[0].total),
-        pages: Math.ceil(countResult.rows[0].total / parseInt(limit as string))
+        total: parseInt(countResult[0].total),
+        pages: Math.ceil(countResult[0].total / parseInt(limit as string))
       }
     });
   } catch (error: any) {
@@ -146,9 +153,13 @@ export const getRapportById = async (req: Request, res: Response): Promise<void>
       WHERE r.id = $1
     `;
 
-    const result = await pool.query(query, [id]);
+    const { QueryTypes } = require('sequelize');
+    const result = await sequelize.query(query, {
+      bind: [id],
+      type: QueryTypes.SELECT
+    });
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       res.status(404).json({
         success: false,
         error: 'Rapport non trouvé'
@@ -156,7 +167,7 @@ export const getRapportById = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const row = result.rows[0];
+    const row = result[0];
     const rapport = {
       id: row.id,
       numeroOrdreService: row.numero_ordre_service,
@@ -301,11 +312,16 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
       observations
     ];
 
-    const result = await pool.query(query, values);
+    const result = await sequelize.query(query, {
+      bind: values
+    });
+
+    // result est [rows, metadata] pour les queries sans type
+    const createdRapport = result[0][0];
 
     res.status(201).json({
       success: true,
-      rapport: result.rows[0]
+      rapport: createdRapport
     });
   } catch (error: any) {
     console.error('Erreur createRapport:', error);
@@ -413,9 +429,13 @@ export const updateRapport = async (req: Request, res: Response): Promise<void> 
       id
     ];
 
-    const result = await pool.query(query, values);
+    const result = await sequelize.query(query, {
+      bind: values
+    });
 
-    if (result.rows.length === 0) {
+    const updatedRapport = result[0][0];
+
+    if (!updatedRapport) {
       res.status(404).json({
         success: false,
         error: 'Rapport non trouvé'
@@ -425,7 +445,7 @@ export const updateRapport = async (req: Request, res: Response): Promise<void> 
 
     res.json({
       success: true,
-      rapport: result.rows[0]
+      rapport: updatedRapport
     });
   } catch (error: any) {
     console.error('Erreur updateRapport:', error);
@@ -442,12 +462,14 @@ export const deleteRapport = async (req: Request, res: Response): Promise<void> 
   try {
     const { id } = req.params;
 
-    const result = await pool.query(
+    const result = await sequelize.query(
       'DELETE FROM rapports WHERE id = $1 RETURNING *',
-      [id]
+      { bind: [id] }
     );
 
-    if (result.rows.length === 0) {
+    const deletedRapport = result[0][0];
+
+    if (!deletedRapport) {
       res.status(404).json({
         success: false,
         error: 'Rapport non trouvé'
