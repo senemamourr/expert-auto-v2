@@ -184,14 +184,25 @@ export default function CreateRapportPage() {
       let response;
       if (isEditMode) {
         response = await rapportsService.updateRapport(rapportId!, payload);
+        if (response.data && (response.data.success !== false)) {
+          // Modification : retour à la liste
+          navigate('/rapports');
+        } else {
+          setError(response.data?.error || 'Erreur lors de la mise à jour');
+        }
       } else {
         response = await rapportsService.createRapport(payload);
-      }
-
-      if (response.data && (response.data.success !== false)) {
-        navigate('/rapports');
-      } else {
-        setError(response.data?.error || 'Erreur lors de la sauvegarde');
+        if (response.data && (response.data.success !== false)) {
+          // Création : aller sur la page détail pour ajouter les chocs
+          const rapportId = response.data.rapport?.id;
+          if (rapportId) {
+            navigate(`/rapports/${rapportId}`);
+          } else {
+            navigate('/rapports');
+          }
+        } else {
+          setError(response.data?.error || 'Erreur lors de la création');
+        }
       }
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Erreur lors de la sauvegarde');
