@@ -1,5 +1,13 @@
 import { Request, Response } from 'express';
-import pool from '../config/database';
+// Essayer les deux formats d'import
+let pool: any;
+try {
+  // Essayer named export
+  pool = require('../config/database').pool;
+} catch {
+  // Sinon default export
+  pool = require('../config/database').default;
+}
 
 // Liste des rapports avec pagination et filtres
 export const getRapports = async (req: Request, res: Response): Promise<void> => {
