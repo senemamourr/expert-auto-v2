@@ -1,195 +1,123 @@
-// Store Zustand pour les rapports
-
 import { create } from 'zustand';
-import rapportsService from '../services/api/rapports.service';
-import type {
-  Rapport,
-  CreateRapportDTO,
-  UpdateRapportDTO,
-  RapportsFilters,
-  StatutRapport,
-} from '@/types';
+import { rapportsService } from '@/services/api/rapports.service';
+
+interface Rapport {
+  id: string;
+  numeroOrdreService: string;
+  numeroSinistre: string;
+  typeRapport: string;
+  dateVisite: string;
+  statut: string;
+  bureauId: string;
+  bureauCode?: string;
+  bureauNom?: string;
+  montantTotal: number;
+  honorairesTotal?: number;
+  createdAt: string;
+}
 
 interface RapportsState {
   rapports: Rapport[];
   currentRapport: Rapport | null;
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-  isLoading: boolean;
+  loading: boolean;
   error: string | null;
-  filters: RapportsFilters;
   
   // Actions
-  fetchRapports: (filters?: RapportsFilters) => Promise<void>;
+  fetchRapports: (params?: any) => Promise<void>;
   fetchRapportById: (id: string) => Promise<void>;
-  searchBySinistre: (numeroSinistre: string) => Promise<Rapport[]>;
-  createRapport: (data: CreateRapportDTO) => Promise<Rapport>;
-  updateRapport: (id: string, data: UpdateRapportDTO) => Promise<Rapport>;
+  createRapport: (data: any) => Promise<void>;
+  updateRapport: (id: string, data: any) => Promise<void>;
   deleteRapport: (id: string) => Promise<void>;
-  updateStatut: (id: string, statut: StatutRapport) => Promise<void>;
-  setFilters: (filters: RapportsFilters) => void;
-  clearCurrentRapport: () => void;
   clearError: () => void;
 }
 
 export const useRapportsStore = create<RapportsState>((set, get) => ({
   rapports: [],
   currentRapport: null,
-  total: 0,
-  page: 1,
-  limit: 10,
-  totalPages: 0,
-  isLoading: false,
+  loading: false,
   error: null,
-  filters: {},
 
-  fetchRapports: async (filters) => {
-    set({ isLoading: true, error: null });
-    
+  fetchRapports: async (params) => {
+    set({ loading: true, error: null });
     try {
-      const mergedFilters = { ...get().filters, ...filters };
-      const response = await rapportsService.getAll(mergedFilters);
-      
-      set({
-        rapports: response.rapports,
-        total: response.pagination.total,
-        page: response.pagination.page,
-        limit: response.pagination.limit,
-        totalPages: response.pagination.totalPages,
-        filters: mergedFilters,
-        isLoading: false,
+      const data = await rapportsService.getRapports(params);
+      set({ 
+        rapports: data.rapports || [],
+        loading: false 
       });
     } catch (error: any) {
-      set({
+      set({ 
         error: error.response?.data?.error || 'Erreur lors du chargement des rapports',
-        isLoading: false,
+        loading: false 
       });
-      throw error;
     }
   },
 
-  fetchRapportById: async (id) => {
-    set({ isLoading: true, error: null });
-    
+  fetchRapportById: async (id: string) => {
+    set({ loading: true, error: null });
     try {
-      const rapport = await rapportsService.getById(id);
-      
-      set({
-        currentRapport: rapport,
-        isLoading: false,
+      const data = await rapportsService.getRapportById(id);
+      set({ 
+        currentRapport: data.rapport,
+        loading: false 
       });
     } catch (error: any) {
-      set({
+      set({ 
         error: error.response?.data?.error || 'Erreur lors du chargement du rapport',
-        isLoading: false,
+        loading: false 
       });
-      throw error;
     }
   },
 
-  searchBySinistre: async (numeroSinistre) => {
-    set({ isLoading: true, error: null });
-    
+  createRapport: async (rapportData: any) => {
+    set({ loading: true, error: null });
     try {
-      const rapports = await rapportsService.getBySinistre(numeroSinistre);
-      set({ isLoading: false });
-      return rapports;
+      await rapportsService.createRapport(rapportData);
+      // Recharger la liste
+      await get().fetchRapports();
+      set({ loading: false });
     } catch (error: any) {
-      set({
-        error: error.response?.data?.error || 'Erreur lors de la recherche',
-        isLoading: false,
-      });
-      throw error;
-    }
-  },
-
-  createRapport: async (data) => {
-    set({ isLoading: true, error: null });
-    
-    try {
-      const rapport = await rapportsService.create(data);
-      
-      // Ajouter le nouveau rapport à la liste
-      set((state) => ({
-        rapports: [rapport, ...state.rapports],
-        total: state.total + 1,
-        isLoading: false,
-      }));
-      
-      return rapport;
-    } catch (error: any) {
-      set({
+      set({ 
         error: error.response?.data?.error || 'Erreur lors de la création du rapport',
-        isLoading: false,
+        loading: false 
       });
       throw error;
     }
   },
 
-  updateRapport: async (id, data) => {
-    set({ isLoading: true, error: null });
-    
+  updateRapport: async (id: string, rapportData: any) => {
+    set({ loading: true, error: null });
     try {
-      const rapport = await rapportsService.update(id, data);
-      
-      // Mettre à jour dans la liste
-      set((state) => ({
-        rapports: state.rapports.map((r) => (r.id === id ? rapport : r)),
-        currentRapport: state.currentRapport?.id === id ? rapport : state.currentRapport,
-        isLoading: false,
-      }));
-      
-      return rapport;
+      await rapportsService.updateRapport(id, rapportData);
+      // Recharger la liste
+      await get().fetchRapports();
+      set({ loading: false });
     } catch (error: any) {
-      set({
-        error: error.response?.data?.error || 'Erreur lors de la mise à jour',
-        isLoading: false,
+      set({ 
+        error: error.response?.data?.error || 'Erreur lors de la mise à jour du rapport',
+        loading: false 
       });
       throw error;
     }
   },
 
-  deleteRapport: async (id) => {
-    set({ isLoading: true, error: null });
-    
+  deleteRapport: async (id: string) => {
+    set({ loading: true, error: null });
     try {
-      await rapportsService.delete(id);
-      
-      // Retirer de la liste
-      set((state) => ({
-        rapports: state.rapports.filter((r) => r.id !== id),
-        total: state.total - 1,
-        currentRapport: state.currentRapport?.id === id ? null : state.currentRapport,
-        isLoading: false,
+      await rapportsService.deleteRapport(id);
+      // Retirer le rapport de la liste
+      set(state => ({
+        rapports: state.rapports.filter(r => r.id !== id),
+        loading: false
       }));
     } catch (error: any) {
-      set({
-        error: error.response?.data?.error || 'Erreur lors de la suppression',
-        isLoading: false,
+      set({ 
+        error: error.response?.data?.error || 'Erreur lors de la suppression du rapport',
+        loading: false 
       });
       throw error;
     }
   },
 
-  updateStatut: async (id, statut) => {
-    try {
-      await get().updateRapport(id, { statut });
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  setFilters: (filters) => {
-    set({ filters });
-  },
-
-  clearCurrentRapport: () => {
-    set({ currentRapport: null });
-  },
-
-  clearError: () => {
-    set({ error: null });
-  },
+  clearError: () => set({ error: null }),
 }));
