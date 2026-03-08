@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 
-// Import de sequelize pour les transactions et queries
 const getSequelize = () => {
   const db = require('../config/database');
   return db.sequelize;
@@ -53,14 +52,14 @@ export const getRapports = async (req: Request, res: Response): Promise<void> =>
         b.code as bureau_code,
         b.nom_agence as bureau_nom,
         v.marque as vehicule_marque,
-        v.modele as vehicule_modele,
+        v.type as vehicule_type,
         v.immatriculation as vehicule_immatriculation,
         a.nom as assure_nom,
         a.prenom as assure_prenom
       FROM rapports r
       LEFT JOIN bureaux b ON r.bureau_id = b.id
-      LEFT JOIN vehicules v ON r.vehicule_id = v.id
-      LEFT JOIN assures a ON r.assure_id = a.id
+      LEFT JOIN vehicules v ON v.rapport_id = r.id
+      LEFT JOIN assures a ON a.rapport_id = r.id
       ${whereClause}
       ORDER BY r.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -90,18 +89,17 @@ export const getRapports = async (req: Request, res: Response): Promise<void> =>
       numeroSinistre: row.numero_sinistre,
       typeRapport: row.type_rapport,
       dateVisite: row.date_visite,
-      dateSinistre: row.date_visite,
+      dateSinistre: row.date_sinistre,
       statut: row.statut,
       bureauId: row.bureau_id,
       bureauCode: row.bureau_code || 'N/A',
       bureauNom: row.bureau_nom || 'N/A',
       vehiculeMarque: row.vehicule_marque || '',
-      vehiculeModele: row.vehicule_modele || '',
+      vehiculeType: row.vehicule_type || '',
       vehiculeImmatriculation: row.vehicule_immatriculation || '',
       assureNom: row.assure_nom || '',
       assurePrenom: row.assure_prenom || '',
       montantTotal: parseFloat(row.montant_total) || 0,
-      honorairesTotal: parseFloat(row.honoraires_total) || 0,
       createdAt: row.created_at
     }));
 
@@ -135,11 +133,18 @@ export const getRapportById = async (req: Request, res: Response): Promise<void>
         b.code as bureau_code,
         b.nom_agence as bureau_nom,
         v.*,
-        a.*
+        a.nom as assure_nom,
+        a.prenom as assure_prenom,
+        a.telephone as assure_telephone,
+        a.adresse as assure_adresse,
+        h.montant_base as honoraires_base,
+        h.frais_deplacement as honoraires_deplacement,
+        h.montant_total as honoraires_total
       FROM rapports r
       LEFT JOIN bureaux b ON r.bureau_id = b.id
-      LEFT JOIN vehicules v ON r.vehicule_id = v.id
-      LEFT JOIN assures a ON r.assure_id = a.id
+      LEFT JOIN vehicules v ON v.rapport_id = r.id
+      LEFT JOIN assures a ON a.rapport_id = r.id
+      LEFT JOIN honoraires h ON h.rapport_id = r.id
       WHERE r.id = $1
     `;
 
@@ -163,7 +168,7 @@ export const getRapportById = async (req: Request, res: Response): Promise<void>
       numeroSinistre: row.numero_sinistre,
       typeRapport: row.type_rapport,
       dateVisite: row.date_visite,
-      dateSinistre: row.date_visite,
+      dateSinistre: row.date_sinistre,
       statut: row.statut,
       
       bureauId: row.bureau_id,
@@ -172,28 +177,28 @@ export const getRapportById = async (req: Request, res: Response): Promise<void>
       
       vehiculeGenre: row.genre || '',
       vehiculeMarque: row.marque || '',
-      vehiculeModele: row.modele || '',
+      vehiculeType: row.type || '',
       vehiculeImmatriculation: row.immatriculation || '',
-      vehiculeChassis: row.numero_chassis || row.numero_serie || '',
-      vehiculeDateMec: row.date_mise_en_circulation || '',
+      vehiculeChassis: row.numero_chassis || '',
+      vehiculeDateMec: row.date_mise_circulation || '',
       vehiculeKilometrage: row.kilometrage || 0,
       
-      assureNom: row.nom || '',
-      assurePrenom: row.prenom || '',
-      assureTelephone: row.telephone || '',
-      assureAdresse: row.adresse || '',
+      assureNom: row.assure_nom || '',
+      assurePrenom: row.assure_prenom || '',
+      assureTelephone: row.assure_telephone || '',
+      assureAdresse: row.assure_adresse || '',
       
-      montantPieces: parseFloat(row.montant_pieces) || 0,
-      montantMainOeuvre: parseFloat(row.montant_main_oeuvre) || 0,
-      montantPeinture: parseFloat(row.montant_peinture) || 0,
-      montantFournitures: parseFloat(row.montant_fournitures) || 0,
+      montantPieces: 0, // Calculé depuis chocs
+      montantMainOeuvre: 0, // Calculé depuis chocs
+      montantPeinture: 0, // Calculé depuis chocs
+      montantFournitures: 0, // Calculé depuis fournitures
       montantTotal: parseFloat(row.montant_total) || 0,
       
       honorairesBase: parseFloat(row.honoraires_base) || 0,
       honorairesDeplacement: parseFloat(row.honoraires_deplacement) || 0,
       honorairesTotal: parseFloat(row.honoraires_total) || 0,
       
-      observations: row.observations,
+      observations: '',
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };
@@ -228,14 +233,7 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
       typeRapport,
       dateSinistre,
       bureauId,
-      statut = 'brouillon',
-      
-      montantPieces = 0,
-      montantMainOeuvre = 0,
-      montantPeinture = 0,
-      montantFournitures = 0,
-      
-      observations
+      statut = 'brouillon'
     } = data;
 
     if (!numeroOrdreService || !numeroSinistre || !typeRapport || !dateSinistre || !bureauId) {
@@ -248,117 +246,125 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const montantTotal = parseFloat(montantPieces) + parseFloat(montantMainOeuvre) + 
-                        parseFloat(montantPeinture) + parseFloat(montantFournitures);
-    
-    const honorairesBase = honoraire.montantBase || data.honorairesBase || 0;
-    const honorairesDeplacement = honoraire.fraisDeplacement || data.honorairesDeplacement || 0;
-    const honorairesTotal = parseFloat(honorairesBase) + parseFloat(honorairesDeplacement);
+    // Récupérer user_id depuis le token ou utiliser un défaut
+    const userId = (req as any).user?.id || '00000000-0000-0000-0000-000000000000';
 
-    // 1. Créer le véhicule si données fournies
-    let vehiculeId = null;
-    if (vehiculeData.marque || data.vehiculeMarque) {
-      const vehiculeQuery = `
-        INSERT INTO vehicules (
-          genre, marque, modele, immatriculation, numero_chassis, numero_serie,
-          date_mise_en_circulation, kilometrage,
-          type, couleur, source_energie, puissance_fiscale, valeur_neuve,
-          created_at, updated_at
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6,
-          $7, $8,
-          $9, $10, $11, $12, $13,
-          NOW(), NOW()
-        ) RETURNING id
-      `;
-
-      const vehiculeResult = await sequelize.query(vehiculeQuery, {
-        bind: [
-          vehiculeData.genre || data.vehiculeGenre || null,
-          vehiculeData.marque || data.vehiculeMarque,
-          vehiculeData.modele || data.vehiculeModele || null,
-          vehiculeData.immatriculation || data.vehiculeImmatriculation || null,
-          vehiculeData.numeroSerie || data.vehiculeChassis || null,
-          vehiculeData.numeroSerie || data.vehiculeChassis || null,
-          vehiculeData.dateMiseEnCirculation || data.vehiculeDateMec || null,
-          vehiculeData.kilometrage || data.vehiculeKilometrage || null,
-          // Champs requis avec valeurs par défaut
-          'Non spécifié',
-          'Non spécifiée',
-          'Non spécifié',
-          0,
-          0
-        ],
-        transaction
-      });
-
-      vehiculeId = vehiculeResult[0][0].id;
-    }
-
-    // 2. Créer l'assuré si données fournies
-    let assureId = null;
-    if (assureData.nom || data.assureNom) {
-      const assureQuery = `
-        INSERT INTO assures (
-          nom, prenom, telephone, adresse,
-          created_at, updated_at
-        ) VALUES (
-          $1, $2, $3, $4,
-          NOW(), NOW()
-        ) RETURNING id
-      `;
-
-      const assureResult = await sequelize.query(assureQuery, {
-        bind: [
-          assureData.nom || data.assureNom,
-          assureData.prenom || data.assurePrenom || null,
-          assureData.telephone || data.assureTelephone || null,
-          assureData.adresse || data.assureAdresse || null
-        ],
-        transaction
-      });
-
-      assureId = assureResult[0][0].id;
-    }
-
-    // 3. Créer le rapport
+    // 1. Créer le rapport D'ABORD
     const rapportQuery = `
       INSERT INTO rapports (
-        numero_ordre_service, numero_sinistre, type_rapport, date_visite, bureau_id, statut,
-        vehicule_id, assure_id,
-        montant_pieces, montant_main_oeuvre, montant_peinture, montant_fournitures, montant_total,
-        honoraires_base, honoraires_deplacement, honoraires_total,
-        observations,
+        type_rapport, numero_ordre_service, bureau_id, numero_sinistre,
+        date_sinistre, date_visite, statut, montant_total, user_id,
         created_at, updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6,
-        $7, $8,
-        $9, $10, $11, $12, $13,
-        $14, $15, $16,
-        $17,
+        $1, $2, $3, $4,
+        $5, $6, $7, $8, $9,
         NOW(), NOW()
       ) RETURNING *
     `;
 
     const rapportResult = await sequelize.query(rapportQuery, {
       bind: [
-        numeroOrdreService,
-        numeroSinistre,
         typeRapport,
-        dateSinistre,
+        numeroOrdreService,
         bureauId,
+        numeroSinistre,
+        dateSinistre,
+        dateSinistre, // date_visite = date_sinistre par défaut
         statut,
-        vehiculeId,
-        assureId,
-        montantPieces,
-        montantMainOeuvre,
-        montantPeinture,
-        montantFournitures,
-        montantTotal,
+        0, // montant_total
+        userId
+      ],
+      transaction
+    });
+
+    const rapportId = rapportResult[0][0].id;
+
+    // 2. Créer le véhicule avec rapport_id
+    if (vehiculeData.marque || data.vehiculeMarque) {
+      const vehiculeQuery = `
+        INSERT INTO vehicules (
+          rapport_id, marque, type, genre, immatriculation, numero_chassis,
+          kilometrage, date_mise_circulation, couleur, source_energie,
+          puissance_fiscale, valeur_neuve, taux_horaire, taux_vetuste,
+          created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6,
+          $7, $8, $9, $10,
+          $11, $12, $13, $14,
+          NOW(), NOW()
+        )
+      `;
+
+      await sequelize.query(vehiculeQuery, {
+        bind: [
+          rapportId,
+          vehiculeData.marque || data.vehiculeMarque || 'Non spécifié',
+          vehiculeData.type || data.vehiculeType || 'Non spécifié',
+          vehiculeData.genre || data.vehiculeGenre || 'VP',
+          vehiculeData.immatriculation || data.vehiculeImmatriculation || 'XXXXXX',
+          vehiculeData.numeroSerie || data.vehiculeChassis || 'XXXXXX',
+          vehiculeData.kilometrage || data.vehiculeKilometrage || 0,
+          vehiculeData.dateMiseEnCirculation || data.vehiculeDateMec || dateSinistre,
+          vehiculeData.couleur || 'Non spécifiée',
+          vehiculeData.sourceEnergie || 'essence',
+          vehiculeData.puissanceFiscale || 0,
+          vehiculeData.valeurNeuve || 0,
+          0, // taux_horaire
+          0  // taux_vetuste
+        ],
+        transaction
+      });
+    }
+
+    // 3. Créer l'assuré avec rapport_id
+    if (assureData.nom || data.assureNom) {
+      const assureQuery = `
+        INSERT INTO assures (
+          rapport_id, nom, prenom, telephone, adresse,
+          created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5,
+          NOW(), NOW()
+        )
+      `;
+
+      await sequelize.query(assureQuery, {
+        bind: [
+          rapportId,
+          assureData.nom || data.assureNom || 'Non spécifié',
+          assureData.prenom || data.assurePrenom || '',
+          assureData.telephone || data.assureTelephone || '0000000000',
+          assureData.adresse || data.assureAdresse || 'Non spécifiée'
+        ],
+        transaction
+      });
+    }
+
+    // 4. Créer les honoraires avec rapport_id
+    const honorairesBase = honoraire.montantBase || data.honorairesBase || 0;
+    const honorairesDeplacement = honoraire.fraisDeplacement || data.honorairesDeplacement || 0;
+    const honorairesTotal = parseFloat(honorairesBase) + parseFloat(honorairesDeplacement);
+
+    const honorairesQuery = `
+      INSERT INTO honoraires (
+        rapport_id, montant_base, avec_vetuste, frais_deplacement,
+        kilometres, montant_total,
+        created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4,
+        $5, $6,
+        NOW(), NOW()
+      )
+    `;
+
+    await sequelize.query(honorairesQuery, {
+      bind: [
+        rapportId,
         honorairesBase,
+        false,
         honorairesDeplacement,
-        honorairesTotal,
-        observations
+        0,
+        honorairesTotal
       ],
       transaction
     });
@@ -398,118 +404,21 @@ export const updateRapport = async (req: Request, res: Response): Promise<void> 
       typeRapport,
       dateSinistre,
       bureauId,
-      statut,
-      
-      montantPieces,
-      montantMainOeuvre,
-      montantPeinture,
-      montantFournitures,
-      
-      observations
+      statut
     } = data;
-
-    // Récupérer le rapport actuel
-    const getRapportQuery = `
-      SELECT * FROM rapports WHERE id = $1
-    `;
-    const currentRapport = await sequelize.query(getRapportQuery, {
-      bind: [id],
-      type: QueryTypes.SELECT,
-      transaction
-    });
-
-    if (currentRapport.length === 0) {
-      await transaction.rollback();
-      res.status(404).json({
-        success: false,
-        error: 'Rapport non trouvé'
-      });
-      return;
-    }
-
-    const rapport: any = currentRapport[0];
-
-    // Mettre à jour le véhicule si existe
-    if (rapport.vehicule_id && (vehiculeData.marque || data.vehiculeMarque)) {
-      const updateVehiculeQuery = `
-        UPDATE vehicules SET
-          genre = COALESCE($1, genre),
-          marque = COALESCE($2, marque),
-          modele = COALESCE($3, modele),
-          immatriculation = COALESCE($4, immatriculation),
-          numero_chassis = COALESCE($5, numero_chassis),
-          date_mise_en_circulation = COALESCE($6, date_mise_en_circulation),
-          kilometrage = COALESCE($7, kilometrage),
-          updated_at = NOW()
-        WHERE id = $8
-      `;
-
-      await sequelize.query(updateVehiculeQuery, {
-        bind: [
-          vehiculeData.genre || data.vehiculeGenre,
-          vehiculeData.marque || data.vehiculeMarque,
-          vehiculeData.modele || data.vehiculeModele,
-          vehiculeData.immatriculation || data.vehiculeImmatriculation,
-          vehiculeData.numeroSerie || data.vehiculeChassis,
-          vehiculeData.dateMiseEnCirculation || data.vehiculeDateMec,
-          vehiculeData.kilometrage || data.vehiculeKilometrage,
-          rapport.vehicule_id
-        ],
-        transaction
-      });
-    }
-
-    // Mettre à jour l'assuré si existe
-    if (rapport.assure_id && (assureData.nom || data.assureNom)) {
-      const updateAssureQuery = `
-        UPDATE assures SET
-          nom = COALESCE($1, nom),
-          prenom = COALESCE($2, prenom),
-          telephone = COALESCE($3, telephone),
-          adresse = COALESCE($4, adresse),
-          updated_at = NOW()
-        WHERE id = $5
-      `;
-
-      await sequelize.query(updateAssureQuery, {
-        bind: [
-          assureData.nom || data.assureNom,
-          assureData.prenom || data.assurePrenom,
-          assureData.telephone || data.assureTelephone,
-          assureData.adresse || data.assureAdresse,
-          rapport.assure_id
-        ],
-        transaction
-      });
-    }
-
-    const montantTotal = parseFloat(montantPieces || 0) + parseFloat(montantMainOeuvre || 0) + 
-                        parseFloat(montantPeinture || 0) + parseFloat(montantFournitures || 0);
-    
-    const honorairesBase = honoraire.montantBase || data.honorairesBase || 0;
-    const honorairesDeplacement = honoraire.fraisDeplacement || data.honorairesDeplacement || 0;
-    const honorairesTotal = parseFloat(honorairesBase) + parseFloat(honorairesDeplacement);
 
     // Mettre à jour le rapport
     const updateRapportQuery = `
       UPDATE rapports SET
-        numero_ordre_service = $1,
-        numero_sinistre = $2,
-        type_rapport = $3,
-        date_visite = $4,
-        bureau_id = $5,
-        statut = $6,
-        montant_pieces = $7,
-        montant_main_oeuvre = $8,
-        montant_peinture = $9,
-        montant_fournitures = $10,
-        montant_total = $11,
-        honoraires_base = $12,
-        honoraires_deplacement = $13,
-        honoraires_total = $14,
-        observations = $15,
+        numero_ordre_service = COALESCE($1, numero_ordre_service),
+        numero_sinistre = COALESCE($2, numero_sinistre),
+        type_rapport = COALESCE($3, type_rapport),
+        date_sinistre = COALESCE($4, date_sinistre),
+        date_visite = COALESCE($5, date_visite),
+        bureau_id = COALESCE($6, bureau_id),
+        statut = COALESCE($7, statut),
         updated_at = NOW()
-      WHERE id = $16
+      WHERE id = $8
       RETURNING *
     `;
 
@@ -519,21 +428,100 @@ export const updateRapport = async (req: Request, res: Response): Promise<void> 
         numeroSinistre,
         typeRapport,
         dateSinistre,
+        dateSinistre,
         bureauId,
         statut,
-        montantPieces,
-        montantMainOeuvre,
-        montantPeinture,
-        montantFournitures,
-        montantTotal,
-        honorairesBase,
-        honorairesDeplacement,
-        honorairesTotal,
-        observations,
         id
       ],
       transaction
     });
+
+    if (!result[0][0]) {
+      await transaction.rollback();
+      res.status(404).json({
+        success: false,
+        error: 'Rapport non trouvé'
+      });
+      return;
+    }
+
+    // Mettre à jour le véhicule
+    if (vehiculeData.marque || data.vehiculeMarque) {
+      const updateVehiculeQuery = `
+        UPDATE vehicules SET
+          marque = COALESCE($1, marque),
+          type = COALESCE($2, type),
+          genre = COALESCE($3, genre),
+          immatriculation = COALESCE($4, immatriculation),
+          numero_chassis = COALESCE($5, numero_chassis),
+          kilometrage = COALESCE($6, kilometrage),
+          date_mise_circulation = COALESCE($7, date_mise_circulation),
+          updated_at = NOW()
+        WHERE rapport_id = $8
+      `;
+
+      await sequelize.query(updateVehiculeQuery, {
+        bind: [
+          vehiculeData.marque || data.vehiculeMarque,
+          vehiculeData.type || data.vehiculeType,
+          vehiculeData.genre || data.vehiculeGenre,
+          vehiculeData.immatriculation || data.vehiculeImmatriculation,
+          vehiculeData.numeroSerie || data.vehiculeChassis,
+          vehiculeData.kilometrage || data.vehiculeKilometrage,
+          vehiculeData.dateMiseEnCirculation || data.vehiculeDateMec,
+          id
+        ],
+        transaction
+      });
+    }
+
+    // Mettre à jour l'assuré
+    if (assureData.nom || data.assureNom) {
+      const updateAssureQuery = `
+        UPDATE assures SET
+          nom = COALESCE($1, nom),
+          prenom = COALESCE($2, prenom),
+          telephone = COALESCE($3, telephone),
+          adresse = COALESCE($4, adresse),
+          updated_at = NOW()
+        WHERE rapport_id = $5
+      `;
+
+      await sequelize.query(updateAssureQuery, {
+        bind: [
+          assureData.nom || data.assureNom,
+          assureData.prenom || data.assurePrenom,
+          assureData.telephone || data.assureTelephone,
+          assureData.adresse || data.assureAdresse,
+          id
+        ],
+        transaction
+      });
+    }
+
+    // Mettre à jour les honoraires
+    const honorairesBase = honoraire.montantBase || data.honorairesBase;
+    const honorairesDeplacement = honoraire.fraisDeplacement || data.honorairesDeplacement;
+
+    if (honorairesBase !== undefined || honorairesDeplacement !== undefined) {
+      const updateHonorairesQuery = `
+        UPDATE honoraires SET
+          montant_base = COALESCE($1, montant_base),
+          frais_deplacement = COALESCE($2, frais_deplacement),
+          montant_total = COALESCE($1, montant_base) + COALESCE($2, frais_deplacement),
+          updated_at = NOW()
+        WHERE rapport_id = $3
+      `;
+
+      await sequelize.query(updateHonorairesQuery, {
+        bind: [
+          honorairesBase,
+          honorairesDeplacement,
+          id
+        ],
+        transaction
+      });
+    }
 
     await transaction.commit();
 
