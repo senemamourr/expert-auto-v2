@@ -78,38 +78,50 @@ export default function CreateRapportPage() {
       const response = await apiClient.get(`/rapports/${rapportId}`);
       const data = response.data.rapport;
 
-      // Pré-remplir tous les champs
-      setNumeroOrdreService(data.numeroOrdreService || '');
-      setNumeroSinistre(data.numeroSinistre || '');
-      setTypeRapport(data.typeRapport || 'estimatif_reparation');
-      setDateVisite(data.dateVisite ? data.dateVisite.split('T')[0] : '');
-      setBureauId(data.bureauId || '');
-      setStatut(data.statut || 'brouillon');
+      console.log('📊 Données du rapport chargé:', data); // DEBUG
 
-      setVehiculeGenre(data.vehiculeGenre || '');
-      setVehiculeMarque(data.vehiculeMarque || '');
-      setVehiculeModele(data.vehiculeModele || '');
-      setVehiculeImmatriculation(data.vehiculeImmatriculation || '');
-      setVehiculeChassis(data.vehiculeChassis || '');
-      setVehiculeDateMec(data.vehiculeDateMec ? data.vehiculeDateMec.split('T')[0] : '');
-      setVehiculeKilometrage(data.vehiculeKilometrage?.toString() || '');
+      // Pré-remplir tous les champs avec gestion stricte des valeurs
+      setNumeroOrdreService(data.numeroOrdreService ?? '');
+      setNumeroSinistre(data.numeroSinistre ?? '');
+      setTypeRapport(data.typeRapport ?? 'estimatif_reparation');
+      setDateVisite(data.dateVisite ? data.dateVisite.split('T')[0] : new Date().toISOString().split('T')[0]);
+      setBureauId(data.bureauId ?? '');
+      setStatut(data.statut ?? 'brouillon');
 
-      setAssureNom(data.assureNom || '');
-      setAssurePrenom(data.assurePrenom || '');
-      setAssureTelephone(data.assureTelephone || '');
-      setAssureAdresse(data.assureAdresse || '');
+      // Véhicule - gérer structure imbriquée OU plate
+      const vehicule = data.vehicule || {};
+      setVehiculeGenre(vehicule.genre || data.vehiculeGenre || '');
+      setVehiculeMarque(vehicule.marque || data.vehiculeMarque || '');
+      setVehiculeModele(vehicule.modele || data.vehiculeModele || '');
+      setVehiculeImmatriculation(vehicule.immatriculation || data.vehiculeImmatriculation || '');
+      setVehiculeChassis(vehicule.numeroSerie || data.vehiculeChassis || '');
+      setVehiculeDateMec(vehicule.dateMiseEnCirculation ? vehicule.dateMiseEnCirculation.split('T')[0] : (data.vehiculeDateMec ? data.vehiculeDateMec.split('T')[0] : ''));
+      setVehiculeKilometrage(vehicule.kilometrage != null ? vehicule.kilometrage.toString() : (data.vehiculeKilometrage != null ? data.vehiculeKilometrage.toString() : ''));
 
-      setMontantPieces(data.montantPieces?.toString() || '0');
-      setMontantMainOeuvre(data.montantMainOeuvre?.toString() || '0');
-      setMontantPeinture(data.montantPeinture?.toString() || '0');
-      setMontantFournitures(data.montantFournitures?.toString() || '0');
+      // Assuré - gérer structure imbriquée OU plate
+      const assure = data.assure || {};
+      setAssureNom(assure.nom || data.assureNom || '');
+      setAssurePrenom(assure.prenom || data.assurePrenom || '');
+      setAssureTelephone(assure.telephone || data.assureTelephone || '');
+      setAssureAdresse(assure.adresse || data.assureAdresse || '');
 
-      setHonorairesBase(data.honorairesBase?.toString() || '25000');
-      setHonorairesDeplacement(data.honorairesDeplacement?.toString() || '0');
+      // Montants - convertir en string, 0 si null/undefined
+      setMontantPieces(data.montantPieces != null ? data.montantPieces.toString() : '0');
+      setMontantMainOeuvre(data.montantMainOeuvre != null ? data.montantMainOeuvre.toString() : '0');
+      setMontantPeinture(data.montantPeinture != null ? data.montantPeinture.toString() : '0');
+      setMontantFournitures(data.montantFournitures != null ? data.montantFournitures.toString() : '0');
 
-      setObservations(data.observations || '');
+      // Honoraires - gérer structure imbriquée OU plate
+      const honoraire = data.honoraire || {};
+      setHonorairesBase(honoraire.montantBase != null ? honoraire.montantBase.toString() : (data.honorairesBase != null ? data.honorairesBase.toString() : '25000'));
+      setHonorairesDeplacement(honoraire.fraisDeplacement != null ? honoraire.fraisDeplacement.toString() : (data.honorairesDeplacement != null ? data.honorairesDeplacement.toString() : '0'));
+
+      // Observations
+      setObservations(data.observations ?? '');
+
+      console.log('✅ Champs pré-remplis avec succès'); // DEBUG
     } catch (error: any) {
-      console.error('Erreur chargement rapport:', error);
+      console.error('❌ Erreur chargement rapport:', error);
       setError('Erreur lors du chargement du rapport');
     } finally {
       setLoadingRapport(false);
