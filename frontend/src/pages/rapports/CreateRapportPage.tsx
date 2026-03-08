@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { MainLayout } from '@/layouts/MainLayout';
 import { Save, X, ArrowLeft } from 'lucide-react';
 import apiClient from '@/services/api/api.client';
@@ -12,9 +12,12 @@ interface Bureau {
 
 export default function CreateRapportPage() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = !!id;
   
   const [bureaux, setBureaux] = useState<Bureau[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingRapport, setLoadingRapport] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Champs du formulaire
@@ -55,7 +58,10 @@ export default function CreateRapportPage() {
 
   useEffect(() => {
     loadBureaux();
-  }, []);
+    if (isEditMode && id) {
+      loadRapport(id);
+    }
+  }, [isEditMode, id]);
 
   const loadBureaux = async () => {
     try {
@@ -63,6 +69,50 @@ export default function CreateRapportPage() {
       setBureaux(response.data.bureaux || []);
     } catch (error) {
       console.error('Erreur chargement bureaux:', error);
+    }
+  };
+
+  const loadRapport = async (rapportId: string) => {
+    setLoadingRapport(true);
+    try {
+      const response = await apiClient.get(`/rapports/${rapportId}`);
+      const data = response.data.rapport;
+
+      // Pré-remplir tous les champs
+      setNumeroOrdreService(data.numeroOrdreService || '');
+      setNumeroSinistre(data.numeroSinistre || '');
+      setTypeRapport(data.typeRapport || 'estimatif_reparation');
+      setDateVisite(data.dateVisite ? data.dateVisite.split('T')[0] : '');
+      setBureauId(data.bureauId || '');
+      setStatut(data.statut || 'brouillon');
+
+      setVehiculeGenre(data.vehiculeGenre || '');
+      setVehiculeMarque(data.vehiculeMarque || '');
+      setVehiculeModele(data.vehiculeModele || '');
+      setVehiculeImmatriculation(data.vehiculeImmatriculation || '');
+      setVehiculeChassis(data.vehiculeChassis || '');
+      setVehiculeDateMec(data.vehiculeDateMec ? data.vehiculeDateMec.split('T')[0] : '');
+      setVehiculeKilometrage(data.vehiculeKilometrage?.toString() || '');
+
+      setAssureNom(data.assureNom || '');
+      setAssurePrenom(data.assurePrenom || '');
+      setAssureTelephone(data.assureTelephone || '');
+      setAssureAdresse(data.assureAdresse || '');
+
+      setMontantPieces(data.montantPieces?.toString() || '0');
+      setMontantMainOeuvre(data.montantMainOeuvre?.toString() || '0');
+      setMontantPeinture(data.montantPeinture?.toString() || '0');
+      setMontantFournitures(data.montantFournitures?.toString() || '0');
+
+      setHonorairesBase(data.honorairesBase?.toString() || '25000');
+      setHonorairesDeplacement(data.honorairesDeplacement?.toString() || '0');
+
+      setObservations(data.observations || '');
+    } catch (error: any) {
+      console.error('Erreur chargement rapport:', error);
+      setError('Erreur lors du chargement du rapport');
+    } finally {
+      setLoadingRapport(false);
     }
   };
 
@@ -95,11 +145,11 @@ export default function CreateRapportPage() {
     setError(null);
 
     try {
-      await apiClient.post('/rapports', {
+      const payload = {
         numeroOrdreService,
         numeroSinistre,
         typeRapport,
-        dateSinistre: dateVisite,  // ✅ Renommé en dateSinistre
+        dateSinistre: dateVisite,
         bureauId,
         statut,
         
@@ -125,17 +175,33 @@ export default function CreateRapportPage() {
         honorairesDeplacement: parseFloat(honorairesDeplacement || '0'),
         
         observations,
-      });
+      };
+
+      if (isEditMode && id) {
+        await apiClient.put(`/rapports/${id}`, payload);
+      } else {
+        await apiClient.post('/rapports', payload);
+      }
 
       // Rediriger vers la liste
       navigate('/rapports');
     } catch (error: any) {
-      console.error('Erreur création rapport:', error);
-      setError(error.response?.data?.error || 'Erreur lors de la création du rapport');
+      console.error('Erreur:', error);
+      setError(error.response?.data?.error || `Erreur lors de ${isEditMode ? 'la modification' : 'la création'} du rapport`);
     } finally {
       setLoading(false);
     }
   };
+
+  if (loadingRapport) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -149,8 +215,12 @@ export default function CreateRapportPage() {
             <ArrowLeft className="h-5 w-5 mr-2" />
             Retour à la liste
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">Nouveau rapport d'expertise</h1>
-          <p className="text-gray-600 mt-1">Créez un nouveau rapport d'expertise automobile</p>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {isEditMode ? 'Modifier le rapport' : 'Nouveau rapport d\'expertise'}
+          </h1>
+          <p className="text-gray-600 mt-1">
+            {isEditMode ? 'Modifiez les informations du rapport' : 'Créez un nouveau rapport d\'expertise automobile'}
+          </p>
         </div>
 
         {/* Erreur */}
@@ -175,7 +245,7 @@ export default function CreateRapportPage() {
                   type="text"
                   value={numeroOrdreService}
                   onChange={(e) => setNumeroOrdreService(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="OS-2024-001"
                   required
                 />
@@ -189,7 +259,7 @@ export default function CreateRapportPage() {
                   type="text"
                   value={numeroSinistre}
                   onChange={(e) => setNumeroSinistre(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="SIN-2024-12345"
                   required
                 />
@@ -202,7 +272,7 @@ export default function CreateRapportPage() {
                 <select
                   value={typeRapport}
                   onChange={(e) => setTypeRapport(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 >
                   <option value="estimatif_reparation">Estimatif de réparation</option>
@@ -219,7 +289,7 @@ export default function CreateRapportPage() {
                   type="date"
                   value={dateVisite}
                   onChange={(e) => setDateVisite(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
@@ -231,7 +301,7 @@ export default function CreateRapportPage() {
                 <select
                   value={bureauId}
                   onChange={(e) => setBureauId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 >
                   <option value="">Sélectionner un bureau</option>
@@ -248,7 +318,7 @@ export default function CreateRapportPage() {
                 <select
                   value={statut}
                   onChange={(e) => setStatut(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="brouillon">Brouillon</option>
                   <option value="en_cours">En cours</option>
@@ -269,7 +339,7 @@ export default function CreateRapportPage() {
                   type="text"
                   value={vehiculeGenre}
                   onChange={(e) => setVehiculeGenre(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="VP, VU, etc."
                 />
               </div>
@@ -280,7 +350,7 @@ export default function CreateRapportPage() {
                   type="text"
                   value={vehiculeMarque}
                   onChange={(e) => setVehiculeMarque(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Toyota, Peugeot..."
                 />
               </div>
@@ -291,7 +361,7 @@ export default function CreateRapportPage() {
                   type="text"
                   value={vehiculeModele}
                   onChange={(e) => setVehiculeModele(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Corolla, 208..."
                 />
               </div>
@@ -302,7 +372,7 @@ export default function CreateRapportPage() {
                   type="text"
                   value={vehiculeImmatriculation}
                   onChange={(e) => setVehiculeImmatriculation(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="DK-1234-AB"
                 />
               </div>
@@ -313,7 +383,7 @@ export default function CreateRapportPage() {
                   type="text"
                   value={vehiculeChassis}
                   onChange={(e) => setVehiculeChassis(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -323,7 +393,7 @@ export default function CreateRapportPage() {
                   type="date"
                   value={vehiculeDateMec}
                   onChange={(e) => setVehiculeDateMec(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -333,7 +403,7 @@ export default function CreateRapportPage() {
                   type="number"
                   value={vehiculeKilometrage}
                   onChange={(e) => setVehiculeKilometrage(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="50000"
                 />
               </div>
@@ -351,7 +421,7 @@ export default function CreateRapportPage() {
                   type="text"
                   value={assureNom}
                   onChange={(e) => setAssureNom(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -361,7 +431,7 @@ export default function CreateRapportPage() {
                   type="text"
                   value={assurePrenom}
                   onChange={(e) => setAssurePrenom(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -371,7 +441,7 @@ export default function CreateRapportPage() {
                   type="tel"
                   value={assureTelephone}
                   onChange={(e) => setAssureTelephone(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="+221 77 123 45 67"
                 />
               </div>
@@ -382,7 +452,7 @@ export default function CreateRapportPage() {
                   type="text"
                   value={assureAdresse}
                   onChange={(e) => setAssureAdresse(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -399,7 +469,7 @@ export default function CreateRapportPage() {
                   type="number"
                   value={montantPieces}
                   onChange={(e) => setMontantPieces(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -409,7 +479,7 @@ export default function CreateRapportPage() {
                   type="number"
                   value={montantMainOeuvre}
                   onChange={(e) => setMontantMainOeuvre(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -419,7 +489,7 @@ export default function CreateRapportPage() {
                   type="number"
                   value={montantPeinture}
                   onChange={(e) => setMontantPeinture(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -429,7 +499,7 @@ export default function CreateRapportPage() {
                   type="number"
                   value={montantFournitures}
                   onChange={(e) => setMontantFournitures(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -455,7 +525,7 @@ export default function CreateRapportPage() {
                   type="number"
                   value={honorairesBase}
                   onChange={(e) => setHonorairesBase(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -465,7 +535,7 @@ export default function CreateRapportPage() {
                   type="number"
                   value={honorairesDeplacement}
                   onChange={(e) => setHonorairesDeplacement(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -487,7 +557,7 @@ export default function CreateRapportPage() {
               value={observations}
               onChange={(e) => setObservations(e.target.value)}
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Notes, observations, commentaires..."
             />
           </div>
@@ -508,7 +578,7 @@ export default function CreateRapportPage() {
               className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
               <Save className="h-5 w-5 mr-2" />
-              {loading ? 'Création...' : 'Créer le rapport'}
+              {loading ? (isEditMode ? 'Modification...' : 'Création...') : (isEditMode ? 'Modifier le rapport' : 'Créer le rapport')}
             </button>
           </div>
         </form>
