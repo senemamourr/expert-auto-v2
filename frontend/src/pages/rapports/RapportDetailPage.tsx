@@ -172,7 +172,11 @@ export default function RapportDetailPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-600">Date de visite</p>
-                <p className="font-medium">{new Date(rapport.dateVisite).toLocaleDateString('fr-FR')}</p>
+                <p className="font-medium">
+                  {rapport.dateVisite 
+                    ? new Date(rapport.dateVisite).toLocaleDateString('fr-FR') 
+                    : 'Non renseignée'}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Bureau</p>
@@ -180,7 +184,11 @@ export default function RapportDetailPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Date de création</p>
-                <p className="font-medium">{new Date(rapport.createdAt).toLocaleDateString('fr-FR')}</p>
+                <p className="font-medium">
+                  {rapport.createdAt 
+                    ? new Date(rapport.createdAt).toLocaleDateString('fr-FR') 
+                    : 'Non renseignée'}
+                </p>
               </div>
             </div>
           </div>
@@ -223,7 +231,11 @@ export default function RapportDetailPage() {
                 {rapport.vehiculeKilometrage && (
                   <div>
                     <p className="text-sm text-gray-600">Kilométrage</p>
-                    <p className="font-medium">{rapport.vehiculeKilometrage.toLocaleString('fr-FR')} km</p>
+                    <p className="font-medium">
+                      {typeof rapport.vehiculeKilometrage === 'number' 
+                        ? rapport.vehiculeKilometrage.toLocaleString('fr-FR') 
+                        : rapport.vehiculeKilometrage} km
+                    </p>
                   </div>
                 )}
               </div>
@@ -263,24 +275,42 @@ export default function RapportDetailPage() {
             <div className="space-y-3">
               <div className="flex justify-between py-2 border-b">
                 <span className="text-gray-600">Pièces</span>
-                <span className="font-medium">{rapport.montantPieces.toLocaleString('fr-FR')} F CFA</span>
+                <span className="font-medium">
+                  {typeof rapport.montantPieces === 'number' 
+                    ? rapport.montantPieces.toLocaleString('fr-FR') 
+                    : '0'} F CFA
+                </span>
               </div>
               <div className="flex justify-between py-2 border-b">
                 <span className="text-gray-600">Main d'œuvre</span>
-                <span className="font-medium">{rapport.montantMainOeuvre.toLocaleString('fr-FR')} F CFA</span>
+                <span className="font-medium">
+                  {typeof rapport.montantMainOeuvre === 'number' 
+                    ? rapport.montantMainOeuvre.toLocaleString('fr-FR') 
+                    : '0'} F CFA
+                </span>
               </div>
               <div className="flex justify-between py-2 border-b">
                 <span className="text-gray-600">Peinture</span>
-                <span className="font-medium">{rapport.montantPeinture.toLocaleString('fr-FR')} F CFA</span>
+                <span className="font-medium">
+                  {typeof rapport.montantPeinture === 'number' 
+                    ? rapport.montantPeinture.toLocaleString('fr-FR') 
+                    : '0'} F CFA
+                </span>
               </div>
               <div className="flex justify-between py-2 border-b">
                 <span className="text-gray-600">Fournitures</span>
-                <span className="font-medium">{rapport.montantFournitures.toLocaleString('fr-FR')} F CFA</span>
+                <span className="font-medium">
+                  {typeof rapport.montantFournitures === 'number' 
+                    ? rapport.montantFournitures.toLocaleString('fr-FR') 
+                    : '0'} F CFA
+                </span>
               </div>
               <div className="flex justify-between py-3 bg-blue-50 px-4 rounded-lg">
                 <span className="font-semibold text-gray-900">Total réparation</span>
                 <span className="text-xl font-bold text-blue-600">
-                  {rapport.montantTotal.toLocaleString('fr-FR')} F CFA
+                  {typeof rapport.montantTotal === 'number' 
+                    ? rapport.montantTotal.toLocaleString('fr-FR') 
+                    : '0'} F CFA
                 </span>
               </div>
             </div>
@@ -292,16 +322,26 @@ export default function RapportDetailPage() {
             <div className="space-y-3">
               <div className="flex justify-between py-2 border-b">
                 <span className="text-gray-600">Honoraires de base</span>
-                <span className="font-medium">{rapport.honorairesBase.toLocaleString('fr-FR')} F CFA</span>
+                <span className="font-medium">
+                  {typeof rapport.honorairesBase === 'number' 
+                    ? rapport.honorairesBase.toLocaleString('fr-FR') 
+                    : '0'} F CFA
+                </span>
               </div>
               <div className="flex justify-between py-2 border-b">
                 <span className="text-gray-600">Frais de déplacement</span>
-                <span className="font-medium">{rapport.honorairesDeplacement.toLocaleString('fr-FR')} F CFA</span>
+                <span className="font-medium">
+                  {typeof rapport.honorairesDeplacement === 'number' 
+                    ? rapport.honorairesDeplacement.toLocaleString('fr-FR') 
+                    : '0'} F CFA
+                </span>
               </div>
               <div className="flex justify-between py-3 bg-green-50 px-4 rounded-lg">
                 <span className="font-semibold text-gray-900">Total honoraires</span>
                 <span className="text-xl font-bold text-green-600">
-                  {rapport.honorairesTotal.toLocaleString('fr-FR')} F CFA
+                  {typeof rapport.honorairesTotal === 'number' 
+                    ? rapport.honorairesTotal.toLocaleString('fr-FR') 
+                    : '0'} F CFA
                 </span>
               </div>
             </div>
