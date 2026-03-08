@@ -1,17 +1,38 @@
 import { Request, Response } from 'express';
-// Essayer les deux formats d'import
-let pool: any;
-try {
-  // Essayer named export
-  pool = require('../config/database').pool;
-} catch {
-  // Sinon default export
-  pool = require('../config/database').default;
-}
+
+// Import du pool avec debug
+const getPool = () => {
+  try {
+    const db = require('../config/database');
+    console.log('🔍 Database module:', Object.keys(db));
+    console.log('🔍 db.pool:', typeof db.pool);
+    console.log('🔍 db.default:', typeof db.default);
+    
+    if (db.pool) {
+      console.log('✅ Utilisation de db.pool');
+      return db.pool;
+    }
+    if (db.default) {
+      console.log('✅ Utilisation de db.default');
+      return db.default;
+    }
+    console.log('✅ Utilisation de db direct');
+    return db;
+  } catch (err) {
+    console.error('❌ Erreur chargement pool:', err);
+    throw new Error('Impossible de charger le pool de connexion');
+  }
+};
+
+const pool = getPool();
+console.log('🔍 Pool final:', typeof pool, pool ? 'OK' : 'UNDEFINED');
 
 // Liste des rapports avec pagination et filtres
 export const getRapports = async (req: Request, res: Response): Promise<void> => {
   try {
+    if (!pool || !pool.query) {
+      throw new Error('Pool de connexion non initialisé');
+    }
     const { page = '1', limit = '10', statut, typeRapport, bureauId, numeroSinistre } = req.query;
     const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
 
