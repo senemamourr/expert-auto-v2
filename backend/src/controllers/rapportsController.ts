@@ -249,14 +249,14 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
     // Récupérer user_id depuis le token ou utiliser un défaut
     const userId = (req as any).user?.id || '00000000-0000-0000-0000-000000000000';
 
-    // 1. Créer le rapport D'ABORD
+    // 1. Créer le rapport D'ABORD (avec UUID généré)
     const rapportQuery = `
       INSERT INTO rapports (
-        type_rapport, numero_ordre_service, bureau_id, numero_sinistre,
+        id, type_rapport, numero_ordre_service, bureau_id, numero_sinistre,
         date_sinistre, date_visite, statut, montant_total, user_id,
         created_at, updated_at
       ) VALUES (
-        $1, $2, $3, $4,
+        gen_random_uuid(), $1, $2, $3, $4,
         $5, $6, $7, $8, $9,
         NOW(), NOW()
       ) RETURNING *
@@ -283,12 +283,12 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
     if (vehiculeData.marque || data.vehiculeMarque) {
       const vehiculeQuery = `
         INSERT INTO vehicules (
-          rapport_id, marque, type, genre, immatriculation, numero_chassis,
+          id, rapport_id, marque, type, genre, immatriculation, numero_chassis,
           kilometrage, date_mise_circulation, couleur, source_energie,
           puissance_fiscale, valeur_neuve, taux_horaire, taux_vetuste,
           created_at, updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6,
+          gen_random_uuid(), $1, $2, $3, $4, $5, $6,
           $7, $8, $9, $10,
           $11, $12, $13, $14,
           NOW(), NOW()
@@ -320,10 +320,10 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
     if (assureData.nom || data.assureNom) {
       const assureQuery = `
         INSERT INTO assures (
-          rapport_id, nom, prenom, telephone, adresse,
+          id, rapport_id, nom, prenom, telephone, adresse,
           created_at, updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5,
+          gen_random_uuid(), $1, $2, $3, $4, $5,
           NOW(), NOW()
         )
       `;
@@ -347,11 +347,11 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
 
     const honorairesQuery = `
       INSERT INTO honoraires (
-        rapport_id, montant_base, avec_vetuste, frais_deplacement,
+        id, rapport_id, montant_base, avec_vetuste, frais_deplacement,
         kilometres, montant_total,
         created_at, updated_at
       ) VALUES (
-        $1, $2, $3, $4,
+        gen_random_uuid(), $1, $2, $3, $4,
         $5, $6,
         NOW(), NOW()
       )
