@@ -184,24 +184,45 @@ export default function CreateRapportPage() {
       let response;
       if (isEditMode) {
         response = await rapportsService.updateRapport(rapportId!, payload);
-        if (response.data && (response.data.success !== false)) {
-          // Modification : retour à la liste
+        console.log('📥 Response modification:', response);
+        console.log('📥 Response data:', response.data);
+        
+        // Si on a une réponse sans erreur explicite, c'est un succès
+        if (response.data) {
           navigate('/rapports');
         } else {
-          setError(response.data?.error || 'Erreur lors de la mise à jour');
+          setError('Erreur lors de la mise à jour');
         }
       } else {
         response = await rapportsService.createRapport(payload);
-        if (response.data && (response.data.success !== false)) {
-          // Création : aller sur la page détail pour ajouter les chocs
-          const rapportId = response.data.rapport?.id;
-          if (rapportId) {
-            navigate(`/rapports/${rapportId}`);
+        console.log('📥 Response création:', response);
+        console.log('📥 Response data:', response.data);
+        console.log('📥 Type de response.data:', typeof response.data);
+        console.log('📥 Clés de response.data:', Object.keys(response.data || {}));
+        
+        // Vérifier si on a un rapport dans la réponse
+        const hasRapport = response.data?.rapport || response.data?.id;
+        const hasError = response.data?.error;
+        
+        console.log('✅ hasRapport:', hasRapport);
+        console.log('❌ hasError:', hasError);
+        
+        if (hasRapport || (!hasError && response.status === 201)) {
+          // Récupérer l'ID du rapport créé
+          const newRapportId = response.data?.rapport?.id || response.data?.id;
+          
+          console.log('✅ Rapport créé avec succès, ID:', newRapportId);
+          
+          if (newRapportId) {
+            console.log('→ Redirection vers /rapports/' + newRapportId);
+            navigate(`/rapports/${newRapportId}`);
           } else {
+            console.warn('⚠️ ID du rapport non trouvé, retour à la liste');
             navigate('/rapports');
           }
         } else {
-          setError(response.data?.error || 'Erreur lors de la création');
+          console.error('❌ Échec de la création:', hasError || 'Erreur inconnue');
+          setError(hasError || 'Erreur lors de la création du rapport');
         }
       }
     } catch (err: any) {
