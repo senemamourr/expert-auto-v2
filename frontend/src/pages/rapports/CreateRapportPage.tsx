@@ -185,10 +185,9 @@ export default function CreateRapportPage() {
       if (isEditMode) {
         response = await rapportsService.updateRapport(rapportId!, payload);
         console.log('📥 Response modification:', response);
-        console.log('📥 Response data:', response.data);
         
-        // Si on a une réponse sans erreur explicite, c'est un succès
-        if (response.data) {
+        // Le service retourne directement les données, pas l'objet Axios
+        if (response) {
           navigate('/rapports');
         } else {
           setError('Erreur lors de la mise à jour');
@@ -196,20 +195,17 @@ export default function CreateRapportPage() {
       } else {
         response = await rapportsService.createRapport(payload);
         console.log('📥 Response création:', response);
-        console.log('📥 Response data:', response.data);
-        console.log('📥 Type de response.data:', typeof response.data);
-        console.log('📥 Clés de response.data:', Object.keys(response.data || {}));
         
-        // Vérifier si on a un rapport dans la réponse
-        const hasRapport = response.data?.rapport || response.data?.id;
-        const hasError = response.data?.error;
+        // Le service retourne directement {success: true, rapport: {...}}
+        // PAS {data: {success: true, rapport: {...}}}
+        const hasRapport = response?.rapport || response?.id;
+        const hasError = response?.error;
         
         console.log('✅ hasRapport:', hasRapport);
         console.log('❌ hasError:', hasError);
         
-        if (hasRapport || (!hasError && response.status === 201)) {
-          // Récupérer l'ID du rapport créé
-          const newRapportId = response.data?.rapport?.id || response.data?.id;
+        if (hasRapport || (response?.success && !hasError)) {
+          const newRapportId = response?.rapport?.id || response?.id;
           
           console.log('✅ Rapport créé avec succès, ID:', newRapportId);
           
