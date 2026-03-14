@@ -117,7 +117,7 @@ export default function CreateRapportPage() {
           assurePrenom: r.assurePrenom || r.prenom || '',
           assureTelephone: r.assureTelephone || r.telephone || '',
           assureAdresse: r.assureAdresse || r.adresse || '',
-          numeroPolice: '',
+          numeroPolice: r.assureNumeroPolice || r.numeroPolice || r.numero_police || '',
           
           // Honoraires
           honorairesBase: r.honorairesBase?.toString() || r.montantBase?.toString() || r.montant_base?.toString() || '',

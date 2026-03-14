@@ -223,6 +223,10 @@ export default function RapportDetailPage() {
               <p className="text-sm text-gray-600">Téléphone</p>
               <p className="font-medium">{rapport.assureTelephone || 'N/A'}</p>
             </div>
+            <div>
+              <p className="text-sm text-gray-600">N° Police d'assurance</p>
+              <p className="font-medium">{rapport.assureNumeroPolice || 'N/A'}</p>
+            </div>
             <div className="col-span-2">
               <p className="text-sm text-gray-600">Adresse</p>
               <p className="font-medium">{rapport.assureAdresse || 'N/A'}</p>
