@@ -80,9 +80,18 @@ export default function CreateRapportPage() {
     try {
       setLoading(true);
       const response = await rapportsService.getRapportById(id);
-      if (response.data && (response.data.rapport || response.data.success)) {
-        const r = response.data.rapport;
+      
+      console.log('📥 Rapport chargé pour édition:', response);
+      
+      // Le service retourne directement {success: true, rapport: {...}}
+      if (response && (response.rapport || response.success)) {
+        const r = response.rapport || response;
+        
+        console.log('📋 Données du rapport:', r);
+        console.log('📋 Clés disponibles:', Object.keys(r));
+        
         setFormData({
+          // Rapport
           numeroOrdreService: r.numeroOrdreService || '',
           numeroSinistre: r.numeroSinistre || '',
           typeRapport: r.typeRapport || 'estimatif_reparation',
@@ -90,30 +99,35 @@ export default function CreateRapportPage() {
           bureauId: r.bureauId || '',
           statut: r.statut || 'brouillon',
           
-          vehiculeGenre: r.vehiculeGenre || 'VP',
-          vehiculeMarque: r.vehiculeMarque || '',
-          vehiculeType: r.vehiculeType || '',
-          vehiculeImmatriculation: r.vehiculeImmatriculation || '',
-          vehiculeChassis: r.vehiculeChassis || '',
-          vehiculeDateMec: r.vehiculeDateMec?.split('T')[0] || '',
-          vehiculeKilometrage: r.vehiculeKilometrage?.toString() || '',
-          vehiculeCouleur: r.vehiculeCouleur || '',
-          vehiculeSourceEnergie: r.vehiculeSourceEnergie || 'essence',
-          vehiculePuissanceFiscale: r.vehiculePuissanceFiscale?.toString() || '',
-          vehiculeValeurNeuve: r.vehiculeValeurNeuve?.toString() || '',
+          // Véhicule - Supporter plusieurs formats de noms
+          vehiculeGenre: r.vehiculeGenre || r.genre || 'VP',
+          vehiculeMarque: r.vehiculeMarque || r.marque || '',
+          vehiculeType: r.vehiculeType || r.type || '',
+          vehiculeImmatriculation: r.vehiculeImmatriculation || r.immatriculation || '',
+          vehiculeChassis: r.vehiculeChassis || r.numeroSerie || r.numero_chassis || '',
+          vehiculeDateMec: r.vehiculeDateMec?.split('T')[0] || r.dateMiseEnCirculation?.split('T')[0] || r.date_mise_circulation?.split('T')[0] || '',
+          vehiculeKilometrage: r.vehiculeKilometrage?.toString() || r.kilometrage?.toString() || '',
+          vehiculeCouleur: r.vehiculeCouleur || r.couleur || '',
+          vehiculeSourceEnergie: r.vehiculeSourceEnergie || r.sourceEnergie || r.source_energie || 'essence',
+          vehiculePuissanceFiscale: r.vehiculePuissanceFiscale?.toString() || r.puissanceFiscale?.toString() || r.puissance_fiscale?.toString() || '',
+          vehiculeValeurNeuve: r.vehiculeValeurNeuve?.toString() || r.valeurNeuve?.toString() || r.valeur_neuve?.toString() || '',
           
-          assureNom: r.assureNom || '',
-          assurePrenom: r.assurePrenom || '',
-          assureTelephone: r.assureTelephone || '',
-          assureAdresse: r.assureAdresse || '',
-          numeroPolice: '', // À extraire des observations si nécessaire
+          // Assuré
+          assureNom: r.assureNom || r.nom || '',
+          assurePrenom: r.assurePrenom || r.prenom || '',
+          assureTelephone: r.assureTelephone || r.telephone || '',
+          assureAdresse: r.assureAdresse || r.adresse || '',
+          numeroPolice: '',
           
-          honorairesBase: r.honorairesBase?.toString() || '',
-          honorairesDeplacement: r.honorairesDeplacement?.toString() || ''
+          // Honoraires
+          honorairesBase: r.honorairesBase?.toString() || r.montantBase?.toString() || r.montant_base?.toString() || '',
+          honorairesDeplacement: r.honorairesDeplacement?.toString() || r.fraisDeplacement?.toString() || r.frais_deplacement?.toString() || ''
         });
+        
+        console.log('✅ Formulaire pré-rempli');
       }
     } catch (err) {
-      console.error('Erreur chargement rapport:', err);
+      console.error('❌ Erreur chargement rapport pour édition:', err);
       setError('Erreur lors du chargement du rapport');
     } finally {
       setLoading(false);
