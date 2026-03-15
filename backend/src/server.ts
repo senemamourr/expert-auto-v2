@@ -102,3 +102,4 @@ connectDatabase().then(async () => {
   console.error('❌ Database connection error:', error);
   process.exit(1);
 });
+// Force redeploy Sun Mar 15 12:29:38     2026
