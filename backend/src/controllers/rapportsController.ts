@@ -137,6 +137,7 @@ export const getRapportById = async (req: Request, res: Response): Promise<void>
         a.prenom as assure_prenom,
         a.telephone as assure_telephone,
         a.adresse as assure_adresse,
+        a.numero_police as assure_numero_police,
         h.montant_base as honoraires_base,
         h.frais_deplacement as honoraires_deplacement,
         h.montant_total as honoraires_total
@@ -191,6 +192,7 @@ export const getRapportById = async (req: Request, res: Response): Promise<void>
       assurePrenom: row.assure_prenom || '',
       assureTelephone: row.assure_telephone || '',
       assureAdresse: row.assure_adresse || '',
+      assureNumeroPolice: row.assure_numero_police || '',
       
       montantTotal: parseFloat(row.montant_total) || 0,
       
@@ -341,10 +343,10 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
     // 3. Créer l'assuré avec VALEURS PAR DÉFAUT pour tous les champs requis
     const assureQuery = `
       INSERT INTO assures (
-        id, rapport_id, nom, prenom, telephone, adresse,
+        id, rapport_id, nom, prenom, telephone, adresse, numero_police,
         created_at, updated_at
       ) VALUES (
-        gen_random_uuid(), $1, $2, $3, $4, $5,
+        gen_random_uuid(), $1, $2, $3, $4, $5, $6,
         NOW(), NOW()
       )
     `;
@@ -355,9 +357,8 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
         assureData.nom || data.assureNom || 'Non spécifié',
         assureData.prenom || data.assurePrenom || 'Non spécifié',
         assureData.telephone || data.assureTelephone || '0000000000',
-        assureData.adresse || data.assureAdresse || 'Non spécifiée'
-        // TODO: Ajouter numero_police quand la colonne existera
-        // assureData.numeroPolice || data.numeroPolice || null
+        assureData.adresse || data.assureAdresse || 'Non spécifiée',
+        assureData.numeroPolice || data.numeroPolice || null
       ],
       transaction
     });
@@ -519,8 +520,9 @@ export const updateRapport = async (req: Request, res: Response): Promise<void> 
         prenom = COALESCE($2, prenom),
         telephone = COALESCE($3, telephone),
         adresse = COALESCE($4, adresse),
+        numero_police = COALESCE($5, numero_police),
         updated_at = NOW()
-      WHERE rapport_id = $5
+      WHERE rapport_id = $6
     `;
 
     await sequelize.query(updateAssureQuery, {
@@ -529,6 +531,7 @@ export const updateRapport = async (req: Request, res: Response): Promise<void> 
         assureData.prenom || data.assurePrenom,
         assureData.telephone || data.assureTelephone,
         assureData.adresse || data.assureAdresse,
+        assureData.numeroPolice || data.numeroPolice,
         id
       ],
       transaction

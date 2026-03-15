@@ -11,6 +11,7 @@ import statistiquesRoutes from './routes/statistiques';
 import seedRoute from './routes/seedRoute';
 import './models/relations';
 import debugRoutes from './routes/debug.routes';
+const { addNumeroPoliceColumn } = require('./migrations/addNumeroPolice');
 
 dotenv.config();
 
@@ -30,6 +31,8 @@ app.use('/api/seed', seedRoute);
 app.use('/api/debug', debugRoutes);
 
 connectDatabase().then(async () => {
+  const db = require('./config/database');
+  await addNumeroPoliceColumn(db.sequelize);
   await initializeDatabase();
   
   app.listen(PORT, () => {
