@@ -48,19 +48,43 @@ async function addNumeroPoliceColumn(sequelize: Sequelize): Promise<void> {
     
     if (results && (results as any).column_name) {
       console.log('✅ Migration: Colonne numero_police existe déjà');
-      return;
+    } else {
+      console.log('➕ Migration: Ajout de la colonne numero_police...');
+      
+      await sequelize.query(`
+        ALTER TABLE assures 
+        ADD COLUMN numero_police VARCHAR(100)
+      `);
+      
+      console.log('✅ Migration: Colonne numero_police ajoutée avec succès');
     }
+  } catch (error: any) {
+    console.error('❌ Migration numero_police: Erreur:', error.message);
+  }
+}
+
+// Migration pour augmenter la taille des VARCHAR trop courts
+async function fixVarcharLimits(sequelize: Sequelize): Promise<void> {
+  try {
+    console.log('🔍 Migration: Correction des limites VARCHAR...');
     
-    console.log('➕ Migration: Ajout de la colonne numero_police...');
-    
+    // Augmenter telephone à VARCHAR(50)
     await sequelize.query(`
       ALTER TABLE assures 
-      ADD COLUMN numero_police VARCHAR(100)
-    `);
+      ALTER COLUMN telephone TYPE VARCHAR(50)
+    `).catch(() => {});
     
-    console.log('✅ Migration: Colonne numero_police ajoutée avec succès');
+    // Augmenter immatriculation à VARCHAR(50)
+    await sequelize.query(`
+      ALTER TABLE vehicules 
+      ALTER COLUMN immatriculation TYPE VARCHAR(50)
+    `).catch(() => {});
+    
+    // NOTE: numero_chassis reste VARCHAR(17) - norme VIN internationale
+    
+    console.log('✅ Migration: Limites VARCHAR corrigées');
   } catch (error: any) {
-    console.error('❌ Migration: Erreur:', error.message);
+    console.error('❌ Migration VARCHAR: Erreur:', error.message);
   }
 }
 
@@ -68,6 +92,7 @@ async function addNumeroPoliceColumn(sequelize: Sequelize): Promise<void> {
 connectDatabase().then(async () => {
   const db = require('./config/database');
   await addNumeroPoliceColumn(db.sequelize);
+  await fixVarcharLimits(db.sequelize);
   await initializeDatabase();
   
   app.listen(PORT, () => {
@@ -77,4 +102,3 @@ connectDatabase().then(async () => {
   console.error('❌ Database connection error:', error);
   process.exit(1);
 });
-// Force redeploy Sun Mar 15 11:10:43     2026

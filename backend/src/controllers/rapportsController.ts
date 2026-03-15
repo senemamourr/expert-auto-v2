@@ -306,6 +306,17 @@ export const createRapport = async (req: Request, res: Response): Promise<void> 
     const energieVehicule = vehiculeData.sourceEnergie || data.vehiculeSourceEnergie;
     const energieFinal = energieVehicule && energiesValides.includes(energieVehicule) ? energieVehicule : 'essence';
     
+    // Valider le VIN (17 caractères max - norme internationale)
+    const chassisInput = vehiculeData.numeroSerie || data.vehiculeChassis || '';
+    if (chassisInput && chassisInput.length > 17) {
+      await transaction.rollback();
+      res.status(400).json({
+        success: false,
+        error: 'Le numéro de châssis (VIN) ne peut pas dépasser 17 caractères (norme internationale)'
+      });
+      return;
+    }
+    
     const vehiculeQuery = `
       INSERT INTO vehicules (
         id, rapport_id, marque, type, genre, immatriculation, numero_chassis,

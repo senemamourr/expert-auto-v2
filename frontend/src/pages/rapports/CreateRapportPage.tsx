@@ -447,15 +447,16 @@ export default function CreateRapportPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  N° Châssis
+                  N° Châssis (VIN) <span className="text-xs text-gray-500">(17 car. max)</span>
                 </label>
                 <input
                   type="text"
                   name="vehiculeChassis"
                   value={formData.vehiculeChassis}
                   onChange={handleChange}
+                  maxLength={17}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="VIN123456789"
+                  placeholder="Ex: 1HGBH41JXMN109186"
                 />
               </div>
 
